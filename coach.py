@@ -243,8 +243,131 @@ def data_summary(driver):
     return "\n".join(lines)
 
 
+def _resolve_track(name):
+    tracks = sorted({s["track"] for s in storage.list_sessions() if s["track"]}, key=len, reverse=True)
+    if not name:
+        return tracks[0] if tracks else None
+    nl = name.lower()
+    for t in tracks:
+        if t.lower() == nl:
+            return t
+    qtok = [w for w in re.split(r"[^a-z0-9]+", nl) if len(w) >= 3]
+    for t in tracks:
+        ttok = [w for w in re.split(r"[^a-z0-9]+", t.lower()) if len(w) >= 3]
+        if any(w in ttok for w in qtok) or any(w in nl for w in ttok):
+            return t
+    return None
+
+
+def _resolve_car(name, track):
+    cars = sorted({s["car"] for s in storage.list_sessions()
+                   if s["car"] and (track is None or s["track"] == track)}, key=len, reverse=True)
+    if not name:
+        return None
+    nl = name.lower()
+    for c in cars:
+        if c.lower() == nl or nl in c.lower() or c.lower() in nl:
+            return c
+    qtok = [w for w in re.split(r"[^a-z0-9]+", nl) if len(w) >= 2]
+    for c in cars:
+        if any(w in c.lower() for w in qtok):
+            return c
+    return None
+
+
+TOOLS = [
+    {"name": "lista_sessioni",
+     "description": "Elenca le sessioni caricate (pista, auto, miglior giro, giri, data). Filtra per pilota se indicato.",
+     "input_schema": {"type": "object", "properties": {
+         "pilota": {"type": "string", "description": "Nome pilota; vuoto = tutti"}}}},
+    {"name": "analizza_best_lap",
+     "description": "Metriche per-curva del miglior giro di un pilota su una pista/auto: velocita' ingresso/apice/uscita, distanza di frenata prima dell'apice, dove torna a gas pieno, g laterale max. Default pilota = utente corrente.",
+     "input_schema": {"type": "object", "properties": {
+         "pista": {"type": "string"}, "auto": {"type": "string"}, "pilota": {"type": "string"}},
+         "required": ["pista"]}},
+    {"name": "confronta_compagni",
+     "description": "Confronta le metriche per-curva del miglior giro dell'utente con quelle dei compagni sulla stessa pista/auto.",
+     "input_schema": {"type": "object", "properties": {
+         "pista": {"type": "string"}, "auto": {"type": "string"}},
+         "required": ["pista"]}},
+    {"name": "leggi_setup",
+     "description": "Parametri del setup di un'auto (pressioni, camber, molle, ammortizzatori, ali, ecc.).",
+     "input_schema": {"type": "object", "properties": {
+         "auto": {"type": "string"}, "pista": {"type": "string"}, "pilota": {"type": "string"}},
+         "required": ["auto"]}},
+]
+
+
+def _h_lista(args, driver):
+    who = args.get("pilota")
+    out = []
+    for s in storage.list_sessions():
+        if who and _norm(s["uploader"]) != _norm(who):
+            continue
+        out.append({"pilota": s["uploader"], "pista": s["track"], "auto": s["car"],
+                    "best": s["best_lap_str"], "giri": s["n_laps"], "data": s["date"]})
+    return {"sessioni": out[:60]}
+
+
+def _h_analizza(args, driver):
+    track = _resolve_track(args.get("pista"))
+    if not track:
+        return {"errore": "pista non trovata tra le sessioni caricate"}
+    pilota = args.get("pilota") or driver
+    car = _resolve_car(args.get("auto"), track)
+    meta = _driver_best_meta(pilota, track, car)
+    if not meta:
+        return {"errore": f"nessuna sessione di {pilota} su {track}" + (f" con {car}" if car else "")}
+    tab = _corner_table(meta, get_or_build_corners(track))
+    return {"pilota": pilota, "pista": track, "auto": meta["car"],
+            "best_lap": meta["best_lap_str"], "v_max": meta.get("v_max"),
+            "meteo": {"aria": meta.get("air_temp"), "asfalto": meta.get("road_temp")},
+            "curve": tab["curve"] if tab else []}
+
+
+def _h_confronta(args, driver):
+    track = _resolve_track(args.get("pista"))
+    if not track:
+        return {"errore": "pista non trovata"}
+    car = _resolve_car(args.get("auto"), track)
+    cmap = get_or_build_corners(track)
+    piloti = {}
+    names = [driver] + sorted({s["uploader"] for s in storage.list_sessions()
+                               if s["track"] == track and _norm(s["uploader"]) != _norm(driver)})
+    for nm in names:
+        meta = _driver_best_meta(nm, track, car) or _driver_best_meta(nm, track, None)
+        if meta:
+            tab = _corner_table(meta, cmap)
+            piloti[nm] = {"best_lap": meta["best_lap_str"], "auto": meta["car"],
+                          "curve": tab["curve"] if tab else []}
+    if len(piloti) < 2:
+        return {"avviso": "dati di un solo pilota disponibili per questa pista", "piloti": piloti}
+    return {"pista": track, "piloti": piloti}
+
+
+def _h_setup(args, driver):
+    target_car = _resolve_car(args.get("auto"), None) or args.get("auto")
+    cands = storage.list_setups()
+    if target_car:
+        tl = target_car.lower()
+        cands = [s for s in cands if s["car"] and (tl in s["car"].lower() or s["car"].lower() in tl)] or storage.list_setups()
+    if not cands:
+        return {"errore": "nessun setup caricato"}
+    cands.sort(key=lambda s: 0 if _norm(s["uploader"]) == _norm(args.get("pilota") or driver) else 1)
+    s = cands[0]
+    params = json.loads(s["params"])
+    return {"auto": s["car"], "nome": s["name"], "di": s["uploader"], "pista": s.get("track"),
+            "parametri": [{"gruppo": p["group"], "angolo": p["corner"],
+                           "voce": p["label"], "valore": p["value"]} for p in params]}
+
+
+_DISPATCH = {"lista_sessioni": _h_lista, "analizza_best_lap": _h_analizza,
+             "confronta_compagni": _h_confronta, "leggi_setup": _h_setup}
+
+
 def chat(messages, driver=None, use_data=False):
-    """Chat libera multi-turno. 'messages' = lista {role, content}. Dati solo se use_data."""
+    """Chat libera multi-turno. Con use_data=True il coach ha STRUMENTI per leggere
+    la telemetria per-curva, i setup e confrontare i piloti, su richiesta."""
     key = os.environ.get("ANTHROPIC_API_KEY")
     if not key:
         return {"error": "AI non configurata: imposta ANTHROPIC_API_KEY su Railway."}
@@ -253,22 +376,47 @@ def chat(messages, driver=None, use_data=False):
     if not msgs or msgs[-1]["role"] != "user":
         return {"error": "Messaggio mancante."}
     system = SYSTEM
+    tools = None
     if use_data and driver:
-        system += "\n\nContesto dati del pilota (usalo se pertinente):\n" + data_summary(driver)
+        tools = TOOLS
+        system += (f"\n\nPilota corrente: {driver}. Hai strumenti per leggere i DATI REALI: "
+                   "analizza_best_lap (telemetria per-curva), confronta_compagni, leggi_setup, "
+                   "lista_sessioni. Quando l'utente chiede del suo giro, del setup o un confronto, "
+                   "USA gli strumenti per ottenere i numeri e poi dai un parere concreto basato su quelli. "
+                   "Non dire che non hai accesso ai dati: chiamali. Se uno strumento torna un errore, "
+                   "spiega cosa manca (es. pista non caricata).")
     model = os.environ.get("COACH_MODEL", "claude-sonnet-4-6")
-    try:
-        r = requests.post("https://api.anthropic.com/v1/messages",
-                          headers={"x-api-key": key, "anthropic-version": "2023-06-01",
-                                   "content-type": "application/json"},
-                          json={"model": model, "max_tokens": 1024, "system": system, "messages": msgs},
-                          timeout=90)
-    except requests.RequestException as e:
-        return {"error": f"Errore di rete verso l'API: {e}"}
-    if r.status_code != 200:
-        return {"error": f"API Claude {r.status_code}: {r.text[:300]}"}
-    data = r.json()
-    answer = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
-    return {"answer": answer}
+
+    for _ in range(6):
+        payload = {"model": model, "max_tokens": 1100, "system": system, "messages": msgs}
+        if tools:
+            payload["tools"] = tools
+        try:
+            r = requests.post("https://api.anthropic.com/v1/messages",
+                              headers={"x-api-key": key, "anthropic-version": "2023-06-01",
+                                       "content-type": "application/json"},
+                              json=payload, timeout=90)
+        except requests.RequestException as e:
+            return {"error": f"Errore di rete verso l'API: {e}"}
+        if r.status_code != 200:
+            return {"error": f"API Claude {r.status_code}: {r.text[:300]}"}
+        data = r.json()
+        blocks = data.get("content", [])
+        tool_uses = [b for b in blocks if b.get("type") == "tool_use"]
+        if not tool_uses:
+            answer = "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
+            return {"answer": answer}
+        msgs.append({"role": "assistant", "content": blocks})
+        results = []
+        for tu in tool_uses:
+            try:
+                out = _DISPATCH.get(tu["name"], lambda a, d: {"errore": "strumento sconosciuto"})(tu.get("input", {}), driver)
+            except Exception as e:
+                out = {"errore": str(e)}
+            results.append({"type": "tool_result", "tool_use_id": tu["id"],
+                            "content": json.dumps(out, ensure_ascii=False)})
+        msgs.append({"role": "user", "content": results})
+    return {"answer": "Ho raccolto i dati ma non sono riuscito a concludere l'analisi, riprova a precisare pista e auto."}
 
 
 def ask(driver_display, question):

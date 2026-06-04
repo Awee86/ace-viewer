@@ -92,11 +92,11 @@ differenza. Per attivarlo serve la riga `setups_folder` nel `config.ini` dell'ag
 
 ## Coach AI (v1.5)
 
-Sezione **Coach**: ogni pilota (identificato dal login) può fare domande in linguaggio
-naturale tipo "alla 4 di Spa la macchina scoda quando accelero". Il server rileva
-pista, auto e numero curva, raccoglie le **metriche reali per-curva** (velocità d'ingresso,
-apice, punto di frenata, riapertura gas) del pilota e dei compagni, più il **setup** dell'auto,
-e interroga l'API di Claude per dare consigli di guida e setup basati sui dati.
+Sezione **Coach**: chat libera multi-turno (widget in basso su tutte le pagine). Con la
+spunta **"usa i miei dati"** il coach riceve degli **strumenti** per leggere su richiesta i
+dati reali — telemetria per-curva del miglior giro (`analizza_best_lap`), confronto coi
+compagni (`confronta_compagni`), parametri setup (`leggi_setup`), elenco sessioni
+(`lista_sessioni`) — e dà pareri basati sui numeri. Senza la spunta resta una chat libera.
 
 Le curve sono **rilevate in automatico** dal giro più veloce unendo i tratti ad alta
 accelerazione laterale (curve veloci) e i minimi di velocità (curve lente); per le piste
