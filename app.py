@@ -57,10 +57,45 @@ def _ingest(ld_path, ldx_path, orig, uploader):
 
 
 # ---------------------------------------------------------------- pagine
+def _laptime_to_sec(s):
+    try:
+        m, rest = s.split(":")
+        return int(m) * 60 + float(rest)
+    except (ValueError, AttributeError):
+        return 1e9
+
+
+def _build_aggregate(sessions):
+    """Raggruppa per pista, e dentro per pilota (leaderboard del best lap)."""
+    tracks = {}
+    for s in sessions:
+        tk = s["track"] or "—"
+        t = tracks.setdefault(tk, {"drivers": {}, "sessions": []})
+        t["sessions"].append(s)
+        sec = _laptime_to_sec(s["best_lap_str"])
+        d = t["drivers"].setdefault(s["uploader"], {
+            "driver": s["uploader"], "best_sec": 1e9, "best_str": "-",
+            "sessions": 0, "laps": 0, "v_max": 0})
+        d["sessions"] += 1
+        d["laps"] += s["n_laps"] or 0
+        d["v_max"] = max(d["v_max"], s["v_max"] or 0)
+        if sec < d["best_sec"]:
+            d["best_sec"], d["best_str"] = sec, s["best_lap_str"]
+    out = []
+    for tk in sorted(tracks):
+        drivers = sorted(tracks[tk]["drivers"].values(), key=lambda d: d["best_sec"])
+        out.append({"track": tk, "drivers": drivers,
+                    "sessions": tracks[tk]["sessions"]})
+    return out
+
+
 @app.route("/")
 @require_auth
 def index():
-    return render_template("index.html", sessions=storage.list_sessions())
+    sessions = storage.list_sessions()
+    return render_template("index.html",
+                           aggregate=_build_aggregate(sessions),
+                           n_sessions=len(sessions))
 
 
 @app.route("/upload", methods=["POST"])
@@ -117,16 +152,30 @@ def api_session(sid):
     meta = storage.get_session_meta(sid)
     if not p or not meta:
         abort(404)
+    core = set(p["meta"].get("lap_channels", []))
+    lap_data = {n: {"dist": d["dist"], "time": d["time"], "x": d["x"], "y": d["y"],
+                    "channels": {k: v for k, v in d["channels"].items() if k in core}}
+                for n, d in p["lap_data"].items()}
     return jsonify({
         "meta": p["meta"],
-        "track": meta["track"],
-        "car": meta["car"],
-        "driver": meta["uploader"],
+        "track": meta["track"], "car": meta["car"], "driver": meta["uploader"],
         "laps": p["laps"],
-        "lap_data": p["lap_data"],
-        "best_lap": p["best_lap"],
-        "best_lap_str": p["best_lap_str"],
+        "lap_data": lap_data,
+        "best_lap": p["best_lap"], "best_lap_str": p["best_lap_str"],
     })
+
+
+@app.route("/api/lapchannel/<sid>/<int:lapn>/<name>")
+@require_auth
+def api_lapchannel(sid, lapn, name):
+    """Un canale qualsiasi di un giro (ricampionato per distanza), su richiesta."""
+    p = storage.load_processed(sid)
+    if not p or str(lapn) not in p["lap_data"]:
+        abort(404)
+    ch = p["lap_data"][str(lapn)]["channels"].get(name)
+    if ch is None:
+        abort(404)
+    return jsonify({"name": name, "values": ch})
 
 
 @app.route("/api/track/<path:track>")
@@ -155,12 +204,16 @@ def api_lap(sid, lapn):
     if not p or not meta or str(lapn) not in p["lap_data"]:
         abort(404)
     lap = next((l for l in p["laps"] if l["n"] == lapn), {})
+    core = set(p["meta"].get("lap_channels", []))
+    d = p["lap_data"][str(lapn)]
+    data = {"dist": d["dist"], "time": d["time"], "x": d["x"], "y": d["y"],
+            "channels": {k: v for k, v in d["channels"].items() if k in core}}
     return jsonify({
         "sid": sid, "lap": lapn,
         "driver": meta["uploader"], "car": meta["car"],
         "time_str": lap.get("time_str", "-"), "time": lap.get("time"),
         "stats": {k: lap.get(k) for k in ("v_max", "v_min", "v_avg", "rpm_max", "full_throttle_pct")},
-        "data": p["lap_data"][str(lapn)],
+        "data": data,
     })
 
 

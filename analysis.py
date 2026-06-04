@@ -87,9 +87,8 @@ def _lap_resample(tg, channels, x, y, t0, t1):
     }
     out["x"] = out["x"] - out["x"][0]
     out["y"] = out["y"] - out["y"][0]
-    for name in LAP_CHANNELS:
-        if name in channels:
-            out["channels"][name] = np.interp(dgrid, dist, channels[name]["values"][mask])
+    for name in channels:                       # tutti i canali, per il selettore completo
+        out["channels"][name] = np.interp(dgrid, dist, channels[name]["values"][mask])
     return out
 
 
@@ -186,6 +185,13 @@ def process(ld_path, ldx_path=None):
 
     best = min((l for l in laps if l["complete"]), key=lambda l: l["time"], default=None)
 
+    # meteo (se disponibile): temperatura aria e asfalto
+    weather = {}
+    if "AIR_TEMP" in channels:
+        weather["air_temp"] = round(float(np.nanmean(channels["AIR_TEMP"]["values"])), 1)
+    if "ROAD_TEMP" in channels:
+        weather["road_temp"] = round(float(np.nanmean(channels["ROAD_TEMP"]["values"])), 1)
+
     return {
         "meta": {
             "date": ld.date, "time": ld.time,
@@ -195,6 +201,7 @@ def process(ld_path, ldx_path=None):
             "n_beacons": len(beacons),
             "lap_channels": [c for c in LAP_CHANNELS if c in channels],
             "n_lap_points": N_LAP,
+            "weather": weather,
         },
         "t": tg,
         "x": x, "y": y,

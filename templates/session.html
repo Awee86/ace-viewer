@@ -5,6 +5,7 @@
 <div class="panel laps-bar">
   <div class="laps-head">
     <h3>Giri <span id="track-name" style="color:var(--dim);text-transform:none;letter-spacing:0"></span></h3>
+    <span id="weather" class="weather"></span>
     <button class="btn ghost" id="add-compare">+ confronta altri piloti</button>
   </div>
   <div class="laps-scroll">
@@ -19,17 +20,32 @@
 
 <div class="layout">
   <div class="charts" id="charts"></div>
-  <div class="rightcol">
-    <div class="panel" id="map-wrap">
-      <h3>Tracciato <span style="color:var(--dim);text-transform:none;letter-spacing:0">(giro di rif. · colore = velocità)</span></h3>
-      <canvas id="map" width="800" height="640"></canvas>
-    </div>
+
+  <div class="sidecol">
     <div class="panel stats" id="stats">
       <h3>Statistiche giro</h3>
       <div id="stats-body" class="stats-body"></div>
     </div>
+    <div class="panel">
+      <h3>Canali telemetria</h3>
+      <div id="chanpick" class="chanpick"></div>
+    </div>
+  </div>
+
+  <div class="panel mapcol" id="map-wrap">
+    <div class="map-head">
+      <h3>Tracciato</h3>
+      <div class="map-modes">
+        <button class="chip mode-btn active" data-mode="speed">Velocità</button>
+        <button class="chip mode-btn" data-mode="input">Staccata / Gas</button>
+      </div>
+    </div>
+    <canvas id="map" width="900" height="760"></canvas>
+    <div class="map-legend" id="map-legend"></div>
   </div>
 </div>
+
+<div id="valbox" class="valbox" hidden></div>
 
 <script>const SID="{{ s.id }}";</script>
 <script src="{{ url_for('static', filename='session.js') }}"></script>

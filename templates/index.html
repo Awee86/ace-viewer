@@ -3,41 +3,48 @@
 <form class="upload" method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data">
   <div>
     <h2>Carica sessione</h2>
-    <p>Seleziona il file <code>.ld</code> (e opzionalmente l'<code>.ldx</code> per i giri).</p>
+    <p>Seleziona il file <code>.ld</code> (e l'<code>.ldx</code> per i giri).</p>
   </div>
   <input type="file" name="files" accept=".ld,.ldx" multiple required>
   <button class="btn" type="submit">Importa</button>
 </form>
 
-{% if sessions %}
-<table class="sessions">
-  <thead><tr>
-    <th>Pista</th><th>Auto</th><th>Data</th><th>Durata</th>
-    <th>Giri</th><th>Best lap</th><th>V max</th><th>Distanza</th><th>Pilota</th><th></th>
-  </tr></thead>
-  <tbody>
-  {% for s in sessions %}
-    <tr onclick="location.href='{{ url_for('session_view', sid=s.id) }}'" style="cursor:pointer">
-      <td>{{ s.track or '—' }}</td>
-      <td><span class="tag">{{ s.car }}</span></td>
-      <td class="num">{{ s.date }} {{ s.time }}</td>
-      <td class="num">{{ '%d:%02d'|format((s.duration//60)|int, (s.duration%60)|int) }}</td>
-      <td class="num">{{ s.n_laps }}</td>
-      <td class="num best">{{ s.best_lap_str }}</td>
-      <td class="num">{{ s.v_max }} <small>km/h</small></td>
-      <td class="num">{{ s.distance_km }} <small>km</small></td>
-      <td class="num" style="color:var(--dim)">{{ s.uploader }}</td>
-      <td onclick="event.stopPropagation()">
-        <form method="post" action="{{ url_for('session_delete', sid=s.id) }}"
-              onsubmit="return confirm('Eliminare questa sessione?')">
-          <button class="btn danger">elimina</button>
-        </form>
-      </td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<div class="empty">Nessuna sessione caricata. Importa un file <code>.ld</code> per iniziare.</div>
+{% if not aggregate %}
+  <div class="empty">Nessuna sessione caricata. Importa un file <code>.ld</code> per iniziare.</div>
 {% endif %}
+
+{% for t in aggregate %}
+<section class="track-block">
+  <h2 class="track-title">{{ t.track }}</h2>
+
+  <table class="sessions leaderboard">
+    <thead><tr><th>#</th><th>Pilota</th><th>Best lap</th><th>Sessioni</th><th>Giri</th><th>V max</th></tr></thead>
+    <tbody>
+    {% for d in t.drivers %}
+      <tr>
+        <td class="num" style="color:var(--dim)">{{ loop.index }}</td>
+        <td>{{ d.driver }}</td>
+        <td class="num best">{{ d.best_str }}</td>
+        <td class="num">{{ d.sessions }}</td>
+        <td class="num">{{ d.laps }}</td>
+        <td class="num">{{ d.v_max }} <small>km/h</small></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="sess-list">
+    {% for s in t.sessions %}
+    <a class="sess-card" href="{{ url_for('session_view', sid=s.id) }}">
+      <div class="sc-top"><span class="tag">{{ s.car }}</span><span class="sc-driver">{{ s.uploader }}</span></div>
+      <div class="sc-mid"><span class="best">{{ s.best_lap_str }}</span> <span class="sc-meta">{{ s.n_laps }} giri</span></div>
+      <div class="sc-bot">
+        {{ s.date }} {{ s.time }}
+        {% if s.air_temp is not none %} · aria {{ s.air_temp }}° · asfalto {{ s.road_temp }}°{% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
 {% endblock %}

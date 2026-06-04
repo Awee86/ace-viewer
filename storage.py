@@ -45,6 +45,10 @@ def init_db():
         cols = [r[1] for r in c.execute("PRAGMA table_info(sessions)")]
         if "sha" not in cols:
             c.execute("ALTER TABLE sessions ADD COLUMN sha TEXT")
+        if "air_temp" not in cols:
+            c.execute("ALTER TABLE sessions ADD COLUMN air_temp REAL")
+        if "road_temp" not in cols:
+            c.execute("ALTER TABLE sessions ADD COLUMN road_temp REAL")
 
 
 def sha_of(path):
@@ -132,16 +136,18 @@ def save_session(payload, ld_path, ldx_path, orig_name, uploader, sha=None):
     if payload["best_lap"] and str(payload["best_lap"]) in payload["lap_data"]:
         d = payload["lap_data"][str(payload["best_lap"])]["dist"]
         best_dist = round(float(d[-1]) / 1000, 2)
+    w = payload["meta"].get("weather", {})
     with _conn() as c:
         c.execute("""INSERT INTO sessions
             (id,orig_name,car,track,date,time,duration,n_laps,best_lap_str,
-             v_max,distance_km,uploader,created_at,sha)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+             v_max,distance_km,uploader,created_at,sha,air_temp,road_temp)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (sid, orig_name, car, track,
              payload["meta"]["date"], payload["meta"]["time"],
              payload["meta"]["duration"], len(complete_laps),
              payload["best_lap_str"], best_vmax, best_dist, uploader,
-             datetime.now(timezone.utc).isoformat(timespec="seconds"), sha))
+             datetime.now(timezone.utc).isoformat(timespec="seconds"), sha,
+             w.get("air_temp"), w.get("road_temp")))
     return sid
 
 
