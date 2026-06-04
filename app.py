@@ -65,25 +65,40 @@ def _laptime_to_sec(s):
         return 1e9
 
 
+def _driver_columns():
+    raw = os.environ.get("DRIVERS", "Ernesto,Nico,Antonello")
+    return [d.strip() for d in raw.split(",") if d.strip()]
+
+
 def _build_aggregate(sessions):
-    """Gerarchia: Pilota -> Tracciato -> Auto -> sessioni."""
-    drv = {}
+    """Una colonna per pilota (Pilota -> Tracciato -> Auto -> sessioni)."""
+    norm = lambda x: (x or "").strip().lower()
+    by_driver = {}
     for s in sessions:
-        d = drv.setdefault(s["uploader"] or "—", {})
-        t = d.setdefault(s["track"] or "—", {})
+        e = by_driver.setdefault(norm(s["uploader"]), {"display": s["uploader"] or "—", "tracks": {}})
+        t = e["tracks"].setdefault(s["track"] or "—", {})
         t.setdefault(s["car"] or "—", []).append(s)
-    out = []
-    for dn in sorted(drv):
+
+    def pack(display, entry):
         tracks = []
-        for tn in sorted(drv[dn]):
-            cars = []
-            for cn in sorted(drv[dn][tn]):
-                sess = sorted(drv[dn][tn][cn], key=lambda s: _laptime_to_sec(s["best_lap_str"]))
-                best = sess[0]["best_lap_str"] if sess else "-"
-                cars.append({"car": cn, "sessions": sess, "best": best})
-            tracks.append({"track": tn, "cars": cars})
-        out.append({"driver": dn, "tracks": tracks})
-    return out
+        if entry:
+            for tn in sorted(entry["tracks"]):
+                cars = []
+                for cn in sorted(entry["tracks"][tn]):
+                    sess = sorted(entry["tracks"][tn][cn], key=lambda s: _laptime_to_sec(s["best_lap_str"]))
+                    cars.append({"car": cn, "sessions": sess,
+                                 "best": sess[0]["best_lap_str"] if sess else "-"})
+                tracks.append({"track": tn, "cars": cars})
+        return {"driver": display, "tracks": tracks}
+
+    columns, used = [], set()
+    for name in _driver_columns():
+        k = norm(name); used.add(k)
+        columns.append(pack(name, by_driver.get(k)))
+    for k, e in by_driver.items():           # eventuali piloti extra non in lista
+        if k not in used:
+            columns.append(pack(e["display"], e))
+    return columns
 
 
 @app.route("/")

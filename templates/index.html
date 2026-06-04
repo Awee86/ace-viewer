@@ -6,41 +6,36 @@
   <button class="btn" type="submit">Importa</button>
 </form>
 
-{% if not aggregate %}
-  <div class="empty">Nessuna sessione caricata. Importa un file <code>.ld</code> per iniziare.</div>
-{% endif %}
-
-{% for d in aggregate %}
-<section class="agg-driver">
-  <h2 class="agg-d">{{ d.driver }}</h2>
-  {% for t in d.tracks %}
-  <div class="agg-track">
-    <h3 class="agg-t">{{ t.track }}</h3>
-    {% for car in t.cars %}
-    <div class="agg-car">
-      <div class="agg-c"><span class="tag">{{ car.car }}</span><span class="agg-cbest">best {{ car.best }}</span></div>
-      <table class="agg-sess">
-        <tbody>
+<div class="home-cols">
+  {% for d in aggregate %}
+  <section class="dcol">
+    <h2 class="dcol-name">{{ d.driver }}</h2>
+    {% if not d.tracks %}
+      <p class="dcol-empty">Nessuna sessione ancora.<br>I dati appariranno qui dopo il caricamento.</p>
+    {% endif %}
+    {% for t in d.tracks %}
+    <div class="agg-track">
+      <h3 class="agg-t">{{ t.track }}</h3>
+      {% for car in t.cars %}
+      <div class="agg-car">
+        <div class="agg-c"><span class="tag">{{ car.car }}</span><span class="agg-cbest">{{ car.best }}</span></div>
         {% for s in car.sessions %}
-        <tr onclick="location.href='{{ url_for('session_view', sid=s.id) }}'">
-          <td class="num agg-time best">{{ s.best_lap_str }}</td>
-          <td class="num">{{ s.n_laps }} giri</td>
-          <td class="num">{{ s.v_max }} <small>km/h</small></td>
-          <td class="agg-date">{{ s.date }} {{ s.time }}</td>
-          <td class="agg-w">{% if s.air_temp is not none %}{{ s.air_temp }}°/{{ s.road_temp }}°{% endif %}</td>
-          <td class="agg-del" onclick="event.stopPropagation()">
+        <div class="cs-row" onclick="location.href='{{ url_for('session_view', sid=s.id) }}'">
+          <span class="cs-time best">{{ s.best_lap_str }}</span>
+          <span class="cs-meta">{{ s.n_laps }} giri · {{ s.v_max }} km/h</span>
+          <span class="cs-date">{{ s.date }} {{ s.time }}{% if s.air_temp is not none %} · {{ s.air_temp }}°/{{ s.road_temp }}°{% endif %}</span>
+          <span class="cs-del" onclick="event.stopPropagation()">
             <form method="post" action="{{ url_for('session_delete', sid=s.id) }}" onsubmit="return confirm('Eliminare?')">
               <button class="xbtn" title="elimina">✕</button>
             </form>
-          </td>
-        </tr>
+          </span>
+        </div>
         {% endfor %}
-        </tbody>
-      </table>
+      </div>
+      {% endfor %}
     </div>
     {% endfor %}
-  </div>
+  </section>
   {% endfor %}
-</section>
-{% endfor %}
+</div>
 {% endblock %}
