@@ -18,17 +18,18 @@
 </div>
 
 <div class="layout">
-  <div class="panel stats" id="stats">
-    <h3>Statistiche giro</h3>
-    <div id="stats-body" class="stats-body"></div>
-  </div>
-  <div class="panel" id="map-wrap">
-    <h3>Tracciato <span style="color:var(--dim);text-transform:none;letter-spacing:0">(giro di riferimento · colore = velocità)</span></h3>
-    <canvas id="map" width="900" height="700"></canvas>
+  <div class="charts" id="charts"></div>
+  <div class="rightcol">
+    <div class="panel" id="map-wrap">
+      <h3>Tracciato <span style="color:var(--dim);text-transform:none;letter-spacing:0">(giro di rif. · colore = velocità)</span></h3>
+      <canvas id="map" width="800" height="640"></canvas>
+    </div>
+    <div class="panel stats" id="stats">
+      <h3>Statistiche giro</h3>
+      <div id="stats-body" class="stats-body"></div>
+    </div>
   </div>
 </div>
-
-<div class="charts" id="charts"></div>
 
 <script>const SID="{{ s.id }}";</script>
 <script src="{{ url_for('static', filename='session.js') }}"></script>
