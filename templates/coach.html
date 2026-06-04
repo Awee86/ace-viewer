@@ -5,15 +5,16 @@
 <div class="coach-wrap">
   <div class="coach-intro">
     <h2>Coach AI</h2>
-    <p class="dcol-empty">Ciao {{ driver }}. Chiedimi come migliorare in una curva: indica pista e numero curva.
-    Esempio: <em>"alla 4 di Spa la macchina scoda quando accelero, come miglioro?"</em>.
-    Uso i tuoi dati di telemetria, quelli dei compagni e il setup dell'auto.
-    <a href="{{ url_for('corners_view') }}">Gestisci la numerazione delle curve →</a></p>
+    <p class="dcol-empty">Ciao {{ driver }}. Parliamo liberamente di guida, setup, gomme, strategia —
+    chiedimi quello che vuoi. Se attivi <em>"usa i miei dati"</em> tengo conto anche delle tue sessioni e della mappa curve.</p>
   </div>
   <div id="chat" class="chat"></div>
   <div class="coach-input">
-    <textarea id="q" rows="2" placeholder="Scrivi qui la tua domanda..."></textarea>
-    <button id="send" class="btn">Chiedi</button>
+    <textarea id="q" rows="2" placeholder="Scrivi qui... (Invio per inviare, Shift+Invio a capo)"></textarea>
+    <div class="coach-controls">
+      <label class="usedata-lbl"><input type="checkbox" id="usedata"> usa i miei dati</label>
+      <button id="send" class="btn">Invia</button>
+    </div>
   </div>
 </div>
 <script>window.COACH_DRIVER="{{ driver }}";</script>

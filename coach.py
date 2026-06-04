@@ -211,6 +211,66 @@ def reference_path(track):
     return None
 
 
+SYSTEM = (
+    "Sei un coach e ingegnere di pista di sim racing, specializzato in Assetto Corsa EVO ma "
+    "competente su guida, setup, gomme, strategia, telemetria e corse in generale. "
+    "Parli italiano, in modo amichevole, diretto e concreto. Sei conversazionale: tieni conto "
+    "di tutto lo scambio e fai domande quando ti servono dettagli per essere utile "
+    "(auto, pista, gomme, cosa fa la macchina, in quale punto). "
+    "Quando suggerisci modifiche al setup spiega brevemente il perche' e l'effetto atteso, e "
+    "proponi un cambiamento alla volta cosi' e' testabile. Se l'utente ti da numeri o telemetria, "
+    "usali; altrimenti ragiona sui principi senza inventare dati specifici."
+)
+
+
+def data_summary(driver):
+    """Riepilogo COMPATTO e opzionale dei dati del pilota (per la spunta 'usa i miei dati')."""
+    mine = [s for s in storage.list_sessions() if _norm(s["uploader"]) == _norm(driver)]
+    if not mine:
+        return "Nessuna sessione caricata da questo pilota."
+    by = {}
+    for s in mine:
+        by.setdefault((s["track"], s["car"]), []).append(s["best_lap_str"])
+    lines = [f"Dati di {driver} (best lap per pista/auto):"]
+    for (trk, car), laps in sorted(by.items()):
+        lines.append(f"- {trk} · {car}: {min(laps)}")
+    # mappa curve note
+    for trk in sorted({s["track"] for s in mine}):
+        cm = storage.get_corners(trk)
+        if cm:
+            names = ", ".join(f"{c['n']}={c['name']}" for c in cm)
+            lines.append(f"Curve {trk}: {names}")
+    return "\n".join(lines)
+
+
+def chat(messages, driver=None, use_data=False):
+    """Chat libera multi-turno. 'messages' = lista {role, content}. Dati solo se use_data."""
+    key = os.environ.get("ANTHROPIC_API_KEY")
+    if not key:
+        return {"error": "AI non configurata: imposta ANTHROPIC_API_KEY su Railway."}
+    msgs = [{"role": m.get("role"), "content": m.get("content", "")}
+            for m in messages if m.get("role") in ("user", "assistant") and m.get("content")][-24:]
+    if not msgs or msgs[-1]["role"] != "user":
+        return {"error": "Messaggio mancante."}
+    system = SYSTEM
+    if use_data and driver:
+        system += "\n\nContesto dati del pilota (usalo se pertinente):\n" + data_summary(driver)
+    model = os.environ.get("COACH_MODEL", "claude-sonnet-4-6")
+    try:
+        r = requests.post("https://api.anthropic.com/v1/messages",
+                          headers={"x-api-key": key, "anthropic-version": "2023-06-01",
+                                   "content-type": "application/json"},
+                          json={"model": model, "max_tokens": 1024, "system": system, "messages": msgs},
+                          timeout=90)
+    except requests.RequestException as e:
+        return {"error": f"Errore di rete verso l'API: {e}"}
+    if r.status_code != 200:
+        return {"error": f"API Claude {r.status_code}: {r.text[:300]}"}
+    data = r.json()
+    answer = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
+    return {"answer": answer}
+
+
 def ask(driver_display, question):
     ctx, err = build_context(driver_display, question)
     if err:

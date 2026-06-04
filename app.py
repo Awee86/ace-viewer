@@ -260,11 +260,14 @@ def coach_view():
 @app.route("/api/coach", methods=["POST"])
 @require_auth
 def api_coach():
-    data = request.get_json(silent=True) or {}
-    q = (data.get("question") or request.form.get("question", "")).strip()
-    if not q:
-        return jsonify(error="Scrivi una domanda."), 400
-    return jsonify(coach.ask(request.user.title(), q))
+    d = request.get_json(silent=True) or {}
+    messages = d.get("messages")
+    if not messages:                                  # retrocompatibilita': singola domanda
+        q = (d.get("question") or "").strip()
+        if not q:
+            return jsonify(error="Scrivi una domanda."), 400
+        messages = [{"role": "user", "content": q}]
+    return jsonify(coach.chat(messages, driver=request.user.title(), use_data=bool(d.get("use_data"))))
 
 
 @app.route("/corners")
