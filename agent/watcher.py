@@ -13,7 +13,7 @@ import configparser
 import requests
 
 APP_NAME = "ACE Agent"
-AGENT_VERSION = "1.0.0"
+AGENT_VERSION = "1.0.1"
 
 
 def base_dir():
@@ -60,17 +60,21 @@ def load_config():
             f.write(DEFAULT_CONFIG)
         log("Creato config.ini: aprilo, inserisci URL/token/nome e riavvia.")
         return None
-    cp = configparser.ConfigParser()
-    cp.read(CONFIG_PATH, encoding="utf-8")
-    a = cp["agent"]
-    cfg = {
-        "url": a.get("dashboard_url", "").rstrip("/"),
-        "token": a.get("token", ""),
-        "uploader": a.get("uploader", "agent"),
-        "folder": os.path.expandvars(a.get("motec_folder", "")),
-        "poll": a.getint("poll_seconds", 15),
-        "min_age": a.getint("min_age_seconds", 10),
-    }
+    try:
+        cp = configparser.ConfigParser(interpolation=None)
+        cp.read(CONFIG_PATH, encoding="utf-8")
+        a = cp["agent"]
+        cfg = {
+            "url": a.get("dashboard_url", "").rstrip("/"),
+            "token": a.get("token", ""),
+            "uploader": a.get("uploader", "agent"),
+            "folder": os.path.expandvars(a.get("motec_folder", "")),
+            "poll": a.getint("poll_seconds", 15),
+            "min_age": a.getint("min_age_seconds", 10),
+        }
+    except Exception as e:
+        log(f"config.ini illeggibile: {e}")
+        return None
     if not cfg["url"] or cfg["token"] in ("", "CAMBIAMI"):
         log("config.ini incompleto: imposta dashboard_url e token.")
         return None
@@ -160,7 +164,7 @@ def scan_once(cfg, state):
             log(f"  errore: {e}")
 
 
-def main():
+def _run():
     once = "--once" in sys.argv
     log(f"{APP_NAME} v{AGENT_VERSION} avviato.")
     cfg = load_config()
@@ -176,6 +180,17 @@ def main():
     while True:
         scan_once(cfg, state)
         time.sleep(cfg["poll"])
+
+
+def main():
+    try:
+        _run()
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:
+        log(f"ERRORE imprevisto: {e}")
+        if "--once" not in sys.argv:
+            input("Premi Invio per chiudere...")
 
 
 if __name__ == "__main__":
