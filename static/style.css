@@ -245,3 +245,15 @@ select,.chip{font-family:var(--mono);font-size:12px;background:var(--panel2);
 
 .setup-track{margin:4px 0 12px}
 .setup-track .ts-table{max-width:760px}
+
+/* ---- v1.4.1 setup a colonne + espansione ---- */
+.set-car{margin:8px 0 2px}
+.set-row{display:flex;align-items:center;gap:8px;padding:5px 6px;border-bottom:1px solid var(--line);cursor:pointer;font-size:12px}
+.set-row:hover,.set-row.open{background:var(--panel2)}
+.set-row .setup-pick{flex:none;transform:scale(1.1)}
+.set-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.set-actions{display:flex;align-items:center;gap:4px;flex:none}
+.set-actions form{display:inline;margin:0}
+.set-detail{padding:6px 6px 10px 26px;border-bottom:1px solid var(--line);background:#0f1216}
+.set-detail .sp-table{font-size:11px;width:100%;border-collapse:collapse}
+.set-detail .sp-table td{padding:3px 8px;border-bottom:1px solid var(--line)}

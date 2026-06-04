@@ -4,40 +4,42 @@
 {% block content %}
 <div class="setup-head">
   <h2>Setup condivisi</h2>
-  <p class="dcol-empty" style="margin:0">Spunta due setup della stessa auto per confrontarli. I file arrivano in automatico dall'agente.</p>
+  <p class="dcol-empty" style="margin:0">Clicca un setup per vedere i parametri. Spunta due setup della stessa auto (anche di piloti diversi) per confrontarli.</p>
 </div>
 
 {% if n==0 %}<div class="empty">Nessun setup ancora. Appariranno qui quando l'agente sincronizza la cartella "Car Setups".</div>{% endif %}
 
-{% for c in cars %}
-<section class="setup-car">
-  <h3 class="dcol-name" style="font-size:14px">{{ c.car }}</h3>
-  {% for t in c.tracks %}
-  <div class="setup-track">
-    <div class="agg-t">{{ t.track }}</div>
-    <table class="ts-table">
-      <thead><tr><th></th><th>Nome</th><th>Pilota</th><th>Data</th><th></th></tr></thead>
-      <tbody>
-      {% for s in t.setups %}
-      <tr>
-        <td><input type="checkbox" class="setup-pick" value="{{ s.id }}" data-car="{{ c.car }}"></td>
-        <td>{{ s.name }}</td>
-        <td>{{ s.uploader }}</td>
-        <td class="agg-date">{{ s.created_at[:16].replace('T',' ') }}</td>
-        <td style="text-align:right;white-space:nowrap">
-          <a class="chip" href="{{ url_for('setup_download', sid=s.id) }}">scarica</a>
-          <form method="post" action="{{ url_for('setup_delete', sid=s.id) }}" style="display:inline" onsubmit="return confirm('Eliminare?')">
-            <button class="xbtn">✕</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
+<div class="home-cols">
+  {% for d in columns %}
+  <section class="dcol">
+    <h2 class="dcol-name">{{ d.driver }}</h2>
+    {% if not d.cars %}<p class="dcol-empty">Nessun setup ancora.</p>{% endif %}
+    {% for c in d.cars %}
+    <div class="set-car"><span class="tag">{{ c.car }}</span></div>
+    {% for t in c.tracks %}
+    <div class="trk">
+      <div class="trk-head"><span class="chev">▾</span><span class="trk-name">{{ t.track }}</span><span class="trk-count">{{ t.setups|length }}</span></div>
+      <div class="trk-body">
+        {% for s in t.setups %}
+        <div class="set-row" data-id="{{ s.id }}">
+          <input type="checkbox" class="setup-pick" value="{{ s.id }}" data-car="{{ c.car }}">
+          <span class="set-name">{{ s.name }}</span>
+          <span class="set-actions">
+            <a class="chip" href="{{ url_for('setup_download', sid=s.id) }}">scarica</a>
+            <form method="post" action="{{ url_for('setup_delete', sid=s.id) }}" onsubmit="return confirm('Eliminare?')">
+              <button class="xbtn">✕</button>
+            </form>
+          </span>
+        </div>
+        <div class="set-detail" id="det-{{ s.id }}" hidden></div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+    {% endfor %}
+  </section>
   {% endfor %}
-</section>
-{% endfor %}
+</div>
 
 <div id="setup-compare" class="setup-compare" hidden></div>
 <script src="{{ url_for('static', filename='setups.js') }}"></script>

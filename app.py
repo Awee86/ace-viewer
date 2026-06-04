@@ -277,15 +277,30 @@ def api_ingest_setup():
 @app.route("/setups")
 @require_auth
 def setups_view():
-    by_car = {}
+    norm = lambda x: (x or "").strip().lower()
+    by_driver = {}
     for s in storage.list_setups():
-        by_car.setdefault(s["car"] or "—", {}).setdefault(s["track"] or "—", []).append(s)
-    cars = []
-    for cn in sorted(by_car):
-        tracks = [{"track": tn, "setups": by_car[cn][tn]} for tn in sorted(by_car[cn])]
-        cars.append({"car": cn, "tracks": tracks})
-    return render_template("setups.html", cars=cars,
-                           n=sum(len(t["setups"]) for c in cars for t in c["tracks"]))
+        e = by_driver.setdefault(norm(s["uploader"]), {"display": s["uploader"] or "—", "cars": {}})
+        e["cars"].setdefault(s["car"] or "—", {}).setdefault(s["track"] or "—", []).append(s)
+
+    def pack(display, entry):
+        cars = []
+        if entry:
+            for cn in sorted(entry["cars"]):
+                tracks = [{"track": tn, "setups": entry["cars"][cn][tn]}
+                          for tn in sorted(entry["cars"][cn])]
+                cars.append({"car": cn, "tracks": tracks})
+        return {"driver": display, "cars": cars}
+
+    columns, used = [], set()
+    for name in _driver_columns():
+        k = norm(name); used.add(k)
+        columns.append(pack(name, by_driver.get(k)))
+    for k, e in by_driver.items():
+        if k not in used:
+            columns.append(pack(e["display"], e))
+    n = sum(len(t["setups"]) for c in columns for car in c["cars"] for t in car["tracks"])
+    return render_template("setups.html", columns=columns, n=n)
 
 
 @app.route("/api/setup/<sid>")
