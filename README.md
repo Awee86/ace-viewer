@@ -98,9 +98,11 @@ pista, auto e numero curva, raccoglie le **metriche reali per-curva** (velocità
 apice, punto di frenata, riapertura gas) del pilota e dei compagni, più il **setup** dell'auto,
 e interroga l'API di Claude per dare consigli di guida e setup basati sui dati.
 
-Le curve sono **rilevate in automatico** dal giro più veloce (minimi di velocità prominenti)
-e numerate in ordine; dalla pagina **Coach → Gestisci numerazione curve** si possono
-rinominare, eliminare quelle sbagliate o ricostruirle.
+Le curve sono **rilevate in automatico** dal giro più veloce unendo i tratti ad alta
+accelerazione laterale (curve veloci) e i minimi di velocità (curve lente); per le piste
+note (Red Bull Ring, Spa) si punta al numero ufficiale di curve e si pre-compilano i nomi.
+Dalla pagina **Coach → Gestisci numerazione curve** si possono aggiungere (clic sulla mappa),
+eliminare, rinominare o ricostruire le curve, con la lista ufficiale come riferimento.
 
 Configurazione su Railway:
 - `ANTHROPIC_API_KEY` — chiave API (da console.anthropic.com). Senza, il coach spiega come configurarla.

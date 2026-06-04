@@ -4,7 +4,7 @@
 {% block content %}
 <div class="setup-head">
   <h2>Numerazione curve</h2>
-  <p class="dcol-empty" style="margin:0">Le curve sono rilevate in automatico dal giro piu' veloce. Rinominale o eliminane di sbagliate, poi salva.</p>
+  <p class="dcol-empty" style="margin:0">Rilevate in automatico dal giro piu' veloce. <b>Clicca sulla mappa per aggiungere</b> una curva mancante, usa ✕ per eliminarne una sbagliata, rinominale, poi salva.</p>
 </div>
 <form method="get" class="trk-select">
   <label>Pista:
@@ -20,15 +20,22 @@
   <div class="corners-map">
     {% if ref and ref.points %}
     <svg id="cmap" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"></svg>
+    <p class="dcol-empty" id="addhint">Suggerimento: clicca un punto del tracciato per inserire lì una curva.</p>
     <script>window.REF={{ ref|tojson }};</script>
-    {% else %}<p class="dcol-empty">Mappa non disponibile.</p>{% endif %}
+    {% else %}<p class="dcol-empty">Mappa non disponibile (manca un giro valido).</p>{% endif %}
   </div>
   <div class="corners-list">
     <table class="ts-table" id="clist"><thead><tr><th>#</th><th>Nome</th><th></th></tr></thead><tbody></tbody></table>
     <div class="corners-actions">
       <button class="btn" id="save">Salva</button>
-      <button class="chip" id="rebuild">Ricostruisci da telemetria</button>
+      <button class="chip" id="rebuild">Ricostruisci</button>
     </div>
+    {% if ref and ref.official %}
+    <div class="official">
+      <div class="official-h">Curve ufficiali ({{ ref.official|length }})</div>
+      <ol class="official-list">{% for nm in ref.official %}<li>{{ nm }}</li>{% endfor %}</ol>
+    </div>
+    {% endif %}
   </div>
 </div>
 <script>window.TRACK={{ track|tojson }};window.CORNERS={{ corners|tojson }};</script>

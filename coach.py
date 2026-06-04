@@ -9,6 +9,28 @@ import requests
 import storage
 import corners as C
 
+# Riferimento curve ufficiali per piste note: nro curve e nomi (in ordine di giro).
+# La corrispondenza con la pista avviene per parole chiave nel nome.
+TRACK_REF = {
+    "red bull": {"count": 10, "names": [
+        "1 - Niki Lauda", "2", "3 - Remus", "4", "5", "6", "7", "8", "9", "10 - Rindt"]},
+    "spielberg": {"count": 10, "names": [
+        "1 - Niki Lauda", "2", "3 - Remus", "4", "5", "6", "7", "8", "9", "10 - Rindt"]},
+    "spa": {"count": 19, "names": [
+        "1 - La Source", "2 - Eau Rouge", "3 - Raidillon", "4 - Kemmel", "5 - Les Combes",
+        "6 - Les Combes", "7 - Malmedy", "8 - Bruxelles", "9 - Speaker's", "10 - Pouhon",
+        "11 - Pouhon", "12 - Fagnes", "13 - Fagnes", "14 - Campus", "15 - Stavelot",
+        "16 - Paul Frere", "17 - Blanchimont", "18 - Bus Stop", "19 - Bus Stop"]},
+}
+
+
+def track_reference(track):
+    t = (track or "").lower()
+    for key, ref in TRACK_REF.items():
+        if key in t:
+            return ref
+    return None
+
 SYSTEM = (
     "Sei un ingegnere di pista e coach di sim racing, esperto di Assetto Corsa EVO. "
     "Rispondi in italiano, in modo conciso e pratico. Ricevi dati REALI di telemetria "
@@ -35,10 +57,13 @@ def _fastest_lap_key(payload):
 
 
 def get_or_build_corners(track):
-    """Mappa curve della pista: se non c'e', la costruisce dal giro piu' veloce disponibile."""
+    """Mappa curve della pista: se non c'e', la costruisce dal giro piu' veloce
+    disponibile, puntando al numero ufficiale di curve quando la pista e' nota."""
     cur = storage.get_corners(track)
     if cur:
         return cur
+    ref = track_reference(track)
+    target = ref["count"] if ref else None
     sess = storage.sessions_by_track(track)        # gia' ordinate per best_lap_str
     for meta in sess:
         payload = storage.load_processed(meta["id"])
@@ -48,12 +73,17 @@ def get_or_build_corners(track):
         if not key:
             continue
         lap = payload["lap_data"][key]
-        det = C.detect_corners(lap["dist"], lap["channels"]["SPEED"])
-        data = [{"n": i + 1, "name": f"Curva {i+1}", "dist_frac": c["dist_frac"]}
-                for i, c in enumerate(det)]
-        if data:
-            storage.save_corners(track, data)
-            return data
+        det = C.detect_corners(lap, target=target)
+        if not det:
+            continue
+        names = None
+        if ref and len(det) == ref["count"]:        # nomi ufficiali solo se il conteggio combacia
+            names = ref["names"]
+        data = [{"n": i + 1,
+                 "name": names[i] if names else f"Curva {i+1}",
+                 "dist_frac": c["dist_frac"]} for i, c in enumerate(det)]
+        storage.save_corners(track, data)
+        return data
     return []
 
 
@@ -167,13 +197,17 @@ def reference_path(track):
             continue
         n = len(x)
         step = max(1, n // 240)
-        pts = [[round(float(x[i]), 1), round(float(y[i]), 1)] for i in range(0, n, step)]
+        dd = lap["dist"]; total = dd[-1] or 1.0
+        pts = [[round(float(x[i]), 1), round(float(y[i]), 1), round(float(dd[i] / total), 4)]
+               for i in range(0, n, step)]
         apex = []
         for c in cmap:
             idx = C._idx_at_frac(lap["dist"], c["dist_frac"])
             apex.append({"n": c["n"], "name": c.get("name", f"Curva {c['n']}"),
                          "x": round(float(x[idx]), 1), "y": round(float(y[idx]), 1)})
-        return {"points": pts, "apexes": apex}
+        ref = track_reference(track)
+        return {"points": pts, "apexes": apex,
+                "official": ref["names"] if ref else None}
     return None
 
 

@@ -289,3 +289,10 @@ select,.chip{font-family:var(--mono);font-size:12px;background:var(--panel2);
 .corners-list .cname{width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:5px;color:var(--txt);padding:4px 6px}
 .corners-actions{margin-top:10px;display:flex;gap:8px;align-items:center}
 @media(max-width:900px){.corners-edit{grid-template-columns:1fr}}
+
+/* official corner list */
+.official{margin-top:16px;border-top:1px solid var(--line);padding-top:10px}
+.official-h{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent2);margin-bottom:6px}
+.official-list{margin:0;padding-left:18px;font-size:12px;color:var(--muted);line-height:1.7}
+#addhint{font-size:11px;margin-top:6px}
+.corners-map svg{cursor:crosshair}
