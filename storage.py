@@ -84,15 +84,26 @@ def parse_filename(name):
 def _to_jsonable(payload):
     def arr(a):
         return np.round(np.asarray(a, dtype=float), 3).tolist()
+
+    def lapd(d):
+        return {
+            "dist": np.round(d["dist"], 1).tolist(),
+            "time": np.round(d["time"], 3).tolist(),
+            "x": np.round(d["x"], 1).tolist(),
+            "y": np.round(d["y"], 1).tolist(),
+            "channels": {k: np.round(v, 2).tolist() for k, v in d["channels"].items()},
+        }
+
     out = {
         "meta": payload["meta"],
         "t": arr(payload["t"]),
         "x": np.round(payload["x"], 1).tolist(),
         "y": np.round(payload["y"], 1).tolist(),
         "laps": payload["laps"],
+        "lap_data": {k: lapd(v) for k, v in payload["lap_data"].items()},
         "best_lap": payload["best_lap"],
         "best_lap_str": payload["best_lap_str"],
-        "session_stats": payload["session_stats"],
+        "best_lap_vmax": payload.get("best_lap_vmax"),
         "channels": {n: {"unit": d["unit"], "values": arr(d["values"])}
                      for n, d in payload["channels"].items()},
     }
@@ -116,6 +127,11 @@ def save_session(payload, ld_path, ldx_path, orig_name, uploader, sha=None):
 
     car, track = parse_filename(orig_name)
     complete_laps = [l for l in payload["laps"] if l["complete"]]
+    best_vmax = payload.get("best_lap_vmax") or 0
+    best_dist = 0.0
+    if payload["best_lap"] and str(payload["best_lap"]) in payload["lap_data"]:
+        d = payload["lap_data"][str(payload["best_lap"])]["dist"]
+        best_dist = round(float(d[-1]) / 1000, 2)
     with _conn() as c:
         c.execute("""INSERT INTO sessions
             (id,orig_name,car,track,date,time,duration,n_laps,best_lap_str,
@@ -124,8 +140,7 @@ def save_session(payload, ld_path, ldx_path, orig_name, uploader, sha=None):
             (sid, orig_name, car, track,
              payload["meta"]["date"], payload["meta"]["time"],
              payload["meta"]["duration"], len(complete_laps),
-             payload["best_lap_str"], payload["session_stats"]["v_max"],
-             payload["session_stats"]["distance_km"], uploader,
+             payload["best_lap_str"], best_vmax, best_dist, uploader,
              datetime.now(timezone.utc).isoformat(timespec="seconds"), sha))
     return sid
 
@@ -134,6 +149,12 @@ def list_sessions():
     with _conn() as c:
         return [dict(r) for r in c.execute(
             "SELECT * FROM sessions ORDER BY created_at DESC")]
+
+
+def sessions_by_track(track):
+    with _conn() as c:
+        return [dict(r) for r in c.execute(
+            "SELECT * FROM sessions WHERE track=? ORDER BY best_lap_str", (track,))]
 
 
 def get_session_meta(sid):

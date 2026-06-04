@@ -13,7 +13,7 @@ import configparser
 import requests
 
 APP_NAME = "ACE Agent"
-AGENT_VERSION = "1.0.1"
+AGENT_VERSION = "1.1.0"
 
 
 def base_dir():

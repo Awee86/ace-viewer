@@ -114,26 +114,54 @@ def session_delete(sid):
 @require_auth
 def api_session(sid):
     p = storage.load_processed(sid)
-    if not p:
+    meta = storage.get_session_meta(sid)
+    if not p or not meta:
         abort(404)
-    core = {n: p["channels"][n] for n in analysis.CORE_CHANNELS if n in p["channels"]}
     return jsonify({
         "meta": p["meta"],
-        "x": p["x"], "y": p["y"],
+        "track": meta["track"],
+        "car": meta["car"],
+        "driver": meta["uploader"],
         "laps": p["laps"],
-        "best_lap": p["best_lap"], "best_lap_str": p["best_lap_str"],
-        "session_stats": p["session_stats"],
-        "channels": core,
+        "lap_data": p["lap_data"],
+        "best_lap": p["best_lap"],
+        "best_lap_str": p["best_lap_str"],
     })
 
 
-@app.route("/api/session/<sid>/channel/<name>")
+@app.route("/api/track/<path:track>")
 @require_auth
-def api_channel(sid, name):
+def api_track(track):
+    """Tutte le sessioni (e i loro giri completi) sulla stessa pista, per il confronto."""
+    out = []
+    for s in storage.sessions_by_track(track):
+        p = storage.load_processed(s["id"])
+        if not p:
+            continue
+        laps = [{"n": l["n"], "time_str": l["time_str"], "time": l["time"],
+                 "v_max": l.get("v_max")} for l in p["laps"] if l["complete"]]
+        if laps:
+            out.append({"id": s["id"], "driver": s["uploader"], "car": s["car"],
+                        "date": s["date"], "time": s["time"], "laps": laps})
+    return jsonify({"track": track, "sessions": out})
+
+
+@app.route("/api/lap/<sid>/<int:lapn>")
+@require_auth
+def api_lap(sid, lapn):
+    """Dati di un singolo giro (per distanza) di una sessione, per la sovrapposizione."""
     p = storage.load_processed(sid)
-    if not p or name not in p["channels"]:
+    meta = storage.get_session_meta(sid)
+    if not p or not meta or str(lapn) not in p["lap_data"]:
         abort(404)
-    return jsonify({name: p["channels"][name]})
+    lap = next((l for l in p["laps"] if l["n"] == lapn), {})
+    return jsonify({
+        "sid": sid, "lap": lapn,
+        "driver": meta["uploader"], "car": meta["car"],
+        "time_str": lap.get("time_str", "-"), "time": lap.get("time"),
+        "stats": {k: lap.get(k) for k in ("v_max", "v_min", "v_avg", "rpm_max", "full_throttle_pct")},
+        "data": p["lap_data"][str(lapn)],
+    })
 
 
 @app.route("/healthz")
