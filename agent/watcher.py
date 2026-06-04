@@ -13,7 +13,7 @@ import configparser
 import requests
 
 APP_NAME = "ACE Agent"
-AGENT_VERSION = "1.3.0"
+AGENT_VERSION = "1.4.0"
 
 
 def base_dir():
@@ -117,9 +117,9 @@ def find_files(folder, ext):
     return out
 
 
-def upload(cfg, ld_path):
-    ldx_path = ld_path[:-3] + ".ldx"
-    files = [("files", (os.path.basename(ld_path), open(ld_path, "rb"), "application/octet-stream"))]
+def upload(cfg, path, extra=None):
+    ldx_path = path[:-3] + ".ldx"
+    files = [("files", (os.path.basename(path), open(path, "rb"), "application/octet-stream"))]
     if os.path.exists(ldx_path):
         files.append(("files", (os.path.basename(ldx_path), open(ldx_path, "rb"), "application/octet-stream")))
     r = requests.post(cfg["url"] + "/api/ingest", headers={"X-Ingest-Token": cfg["token"]},
@@ -128,15 +128,18 @@ def upload(cfg, ld_path):
     return r.json()
 
 
-def upload_setup(cfg, path):
+def upload_setup(cfg, path, extra=None):
+    data = {"uploader": cfg["uploader"]}
+    if extra:
+        data.update(extra)                       # car / track dalle sottocartelle
     files = [("files", (os.path.basename(path), open(path, "rb"), "application/octet-stream"))]
     r = requests.post(cfg["url"] + "/api/ingest-setup", headers={"X-Ingest-Token": cfg["token"]},
-                      data={"uploader": cfg["uploader"]}, files=files, timeout=60)
+                      data=data, files=files, timeout=60)
     r.raise_for_status()
     return r.json()
 
 
-def _process(path, upload_fn, label, cfg, state, now):
+def _process(path, upload_fn, label, cfg, state, now, extra=None):
     sha = None
     try:
         if now - os.path.getmtime(path) < cfg["min_age"]:
@@ -145,13 +148,14 @@ def _process(path, upload_fn, label, cfg, state, now):
         if sha in state:
             return
         log(f"{label} {os.path.basename(path)} ...")
-        res = upload_fn(cfg, path)
+        res = upload_fn(cfg, path, extra)
         state.add(sha); save_state(state)
         log("  duplicato sul server" if res.get("duplicate") else f"  ok -> id {res.get('id')}")
     except requests.HTTPError as e:
         code = e.response.status_code if e.response is not None else 0
         if code in (400, 422):
-            if sha: state.add(sha); save_state(state)
+            if sha:
+                state.add(sha); save_state(state)
             log("  ignorato (file non valido)")
         elif code in (401, 403):
             log("  TOKEN NON VALIDO: correggi 'token' in config.ini e riavvia.")
@@ -161,6 +165,46 @@ def _process(path, upload_fn, label, cfg, state, now):
         log(f"  errore rete: {e} (riprovo dopo)")
     except Exception as e:
         log(f"  errore: {e}")
+
+
+def _safe(s):
+    s = s or "Varie"
+    for ch in '<>:"/\\|?*':
+        s = s.replace(ch, "_")
+    return s.strip() or "Varie"
+
+
+def sync_setups_down(cfg, state):
+    """Scarica i setup degli altri e li scrive in Car Setups\\<Auto>\\<Pista>\\.
+    I file scaricati entrano nello stato, quindi non vengono ri-caricati (no loop)."""
+    sf = cfg.get("setups_folder")
+    if not sf:
+        return
+    try:
+        man = requests.get(cfg["url"] + "/api/setups-manifest",
+                           headers={"X-Ingest-Token": cfg["token"]}, timeout=30)
+        man.raise_for_status()
+        setups = man.json().get("setups", [])
+    except requests.RequestException as e:
+        log(f"  sync setup: errore rete ({e})")
+        return
+    for s in setups:
+        if s["sha"] in state:        # mio, o gia' scaricato
+            continue
+        try:
+            r = requests.get(cfg["url"] + f"/api/setup-file/{s['id']}",
+                             headers={"X-Ingest-Token": cfg["token"]}, timeout=60)
+            r.raise_for_status()
+        except requests.RequestException as e:
+            log(f"  sync setup {s['name']}: errore download ({e})")
+            continue
+        dest_dir = os.path.join(sf, _safe(s.get("car")), _safe(s.get("track")))
+        os.makedirs(dest_dir, exist_ok=True)
+        fname = _safe(f"{s['name']} [{s['uploader']}]") + ".carsetup"
+        with open(os.path.join(dest_dir, fname), "wb") as f:
+            f.write(r.content)
+        state.add(s["sha"]); save_state(state)
+        log(f"Scaricato setup '{s['name']}' di {s['uploader']} -> {s.get('car')}/{s.get('track')}")
 
 
 def scan_once(cfg, state):
@@ -173,7 +217,14 @@ def scan_once(cfg, state):
     sf = cfg.get("setups_folder")
     if sf and os.path.isdir(sf):
         for sp in find_files(sf, ".carsetup"):
-            _process(sp, upload_setup, "Setup", cfg, state, now)
+            rel = os.path.relpath(sp, sf).split(os.sep)
+            extra = {}
+            if len(rel) >= 2:
+                extra["car"] = rel[0]            # cartella auto
+            if len(rel) >= 3:
+                extra["track"] = rel[1]          # cartella pista
+            _process(sp, upload_setup, "Setup", cfg, state, now, extra)
+    sync_setups_down(cfg, state)                 # scarica i setup degli altri
 
 
 def _run():

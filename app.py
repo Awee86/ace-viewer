@@ -268,7 +268,9 @@ def api_ingest_setup():
     except Exception as e:
         return jsonify(error=f"parse: {e}"), 400
     name = os.path.splitext(os.path.basename(f.filename))[0]
-    sid = storage.save_setup(raw, parsed, name, uploader, sha)
+    car = request.form.get("car") or None
+    track = request.form.get("track") or None
+    sid = storage.save_setup(raw, parsed, name, uploader, sha, car=car, track=track)
     return jsonify(id=sid, duplicate=False, status="ok")
 
 
@@ -277,9 +279,13 @@ def api_ingest_setup():
 def setups_view():
     by_car = {}
     for s in storage.list_setups():
-        by_car.setdefault(s["car"] or "—", []).append(s)
-    cars = [{"car": c, "setups": by_car[c]} for c in sorted(by_car)]
-    return render_template("setups.html", cars=cars, n=sum(len(c["setups"]) for c in cars))
+        by_car.setdefault(s["car"] or "—", {}).setdefault(s["track"] or "—", []).append(s)
+    cars = []
+    for cn in sorted(by_car):
+        tracks = [{"track": tn, "setups": by_car[cn][tn]} for tn in sorted(by_car[cn])]
+        cars.append({"car": cn, "tracks": tracks})
+    return render_template("setups.html", cars=cars,
+                           n=sum(len(t["setups"]) for c in cars for t in c["tracks"]))
 
 
 @app.route("/api/setup/<sid>")
@@ -307,6 +313,32 @@ def setup_download(sid):
 def setup_delete(sid):
     storage.delete_setup(sid)
     return redirect(url_for("setups_view"))
+
+
+def _token_ok():
+    tok = os.environ.get("INGEST_TOKEN")
+    return tok and request.headers.get("X-Ingest-Token") == tok
+
+
+@app.route("/api/setups-manifest")
+def api_setups_manifest():
+    """Elenco setup (per l'agente che sincronizza in download). Auth a token."""
+    if not _token_ok():
+        return jsonify(error="token non valido"), 401
+    items = [{"id": s["id"], "car": s["car"], "track": s["track"], "name": s["name"],
+              "uploader": s["uploader"], "sha": s["sha"]} for s in storage.list_setups()]
+    return jsonify(setups=items)
+
+
+@app.route("/api/setup-file/<sid>")
+def api_setup_file(sid):
+    if not _token_ok():
+        return jsonify(error="token non valido"), 401
+    s = storage.get_setup(sid)
+    if not s:
+        abort(404)
+    return send_file(storage.setup_file(sid), as_attachment=False,
+                     download_name=(s["name"] or "setup") + ".carsetup")
 
 
 # ---------------------------------------------------------------- ingest agente

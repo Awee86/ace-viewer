@@ -242,3 +242,6 @@ select,.chip{font-family:var(--mono);font-size:12px;background:var(--panel2);
 .sp-table tr.grp td{background:var(--bg2);color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.1em;font-weight:600}
 .sp-table tr.diff td{background:#2a1d12}
 .sp-table tr.diff td.num{color:var(--amber);font-weight:600}
+
+.setup-track{margin:4px 0 12px}
+.setup-track .ts-table{max-width:760px}

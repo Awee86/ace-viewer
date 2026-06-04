@@ -52,25 +52,30 @@ def init_db():
         c.execute("""
             CREATE TABLE IF NOT EXISTS setups (
                 id TEXT PRIMARY KEY,
-                name TEXT, car TEXT, preset TEXT,
+                name TEXT, car TEXT, track TEXT, preset TEXT,
                 uploader TEXT, sha TEXT,
                 params TEXT, created_at TEXT
             )""")
+        scols = [r[1] for r in c.execute("PRAGMA table_info(setups)")]
+        if "track" not in scols:
+            c.execute("ALTER TABLE setups ADD COLUMN track TEXT")
 
 
 SETUP_DIR = os.path.join(DATA_DIR, "setups")
 os.makedirs(SETUP_DIR, exist_ok=True)
 
 
-def save_setup(raw_bytes, parsed, name, uploader, sha):
+def save_setup(raw_bytes, parsed, name, uploader, sha, car=None, track=None):
     import uuid as _uuid
     sid = _uuid.uuid4().hex[:12]
     with open(os.path.join(SETUP_DIR, sid + ".carsetup"), "wb") as f:
         f.write(raw_bytes)
+    car_final = car or parsed["car"]            # preferisci la cartella auto
+    track_final = track or ""
     with _conn() as c:
-        c.execute("""INSERT INTO setups (id,name,car,preset,uploader,sha,params,created_at)
-                     VALUES (?,?,?,?,?,?,?,?)""",
-                  (sid, name, parsed["car"], parsed.get("preset", ""), uploader, sha,
+        c.execute("""INSERT INTO setups (id,name,car,track,preset,uploader,sha,params,created_at)
+                     VALUES (?,?,?,?,?,?,?,?,?)""",
+                  (sid, name, car_final, track_final, parsed.get("preset", ""), uploader, sha,
                    json.dumps(parsed["params"]),
                    datetime.now(timezone.utc).isoformat(timespec="seconds")))
     return sid
