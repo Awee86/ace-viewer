@@ -92,7 +92,8 @@ function computeMapTransform(){
   const w=cv.width,h=cv.height;
   const s=Math.min((w-2*pad)/((xmax-xmin)||1),(h-2*pad)/((ymax-ymin)||1));
   const ox=(w-(xmax-xmin)*s)/2,oy=(h-(ymax-ymin)*s)/2;
-  mapT={px:i=>ox+(X[i]-xmin)*s,py:i=>h-(oy+(Y[i]-ymin)*s)};
+  // px invertito (mirror orizzontale) per orientare il tracciato come la pista reale
+  mapT={px:i=>w-(ox+(X[i]-xmin)*s),py:i=>h-(oy+(Y[i]-ymin)*s)};
 }
 function drawMap(){
   const ref=refLap(); ctx.clearRect(0,0,cv.width,cv.height); if(!ref||!mapT) return;

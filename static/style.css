@@ -62,7 +62,7 @@ table.sessions tr:hover td{background:var(--panel2)}
 .stat .v{font-family:var(--mono);font-size:22px;font-weight:600;margin-top:2px}
 .stat .v small{font-size:12px;color:var(--muted);font-weight:400}
 
-.layout{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:18px;align-items:start}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 520px;gap:18px;align-items:start}
 .rightcol{display:flex;flex-direction:column;gap:18px;position:sticky;top:74px}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
 .panel h3{margin:0 0 10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
