@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Setup · ACE Viewer{% endblock %}
+{% block crumb %}Setup condivisi{% endblock %}
+{% block content %}
+<div class="setup-head">
+  <h2>Setup condivisi</h2>
+  <p class="dcol-empty" style="margin:0">Spunta due setup della stessa auto per confrontarli. I file arrivano in automatico dall'agente.</p>
+</div>
+
+{% if n==0 %}<div class="empty">Nessun setup ancora. Appariranno qui quando l'agente li sincronizza dalla cartella "Car Setups".</div>{% endif %}
+
+{% for c in cars %}
+<section class="setup-car">
+  <h3 class="agg-t">{{ c.car }}</h3>
+  <table class="ts-table">
+    <thead><tr><th></th><th>Nome</th><th>Pilota</th><th>Data</th><th></th></tr></thead>
+    <tbody>
+    {% for s in c.setups %}
+    <tr>
+      <td><input type="checkbox" class="setup-pick" value="{{ s.id }}" data-car="{{ c.car }}" data-name="{{ s.name }}" data-driver="{{ s.uploader }}"></td>
+      <td>{{ s.name }}</td>
+      <td>{{ s.uploader }}</td>
+      <td class="agg-date">{{ s.created_at[:16].replace('T',' ') }}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <a class="chip" href="{{ url_for('setup_download', sid=s.id) }}">scarica</a>
+        <form method="post" action="{{ url_for('setup_delete', sid=s.id) }}" style="display:inline" onsubmit="return confirm('Eliminare?')">
+          <button class="xbtn">✕</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endfor %}
+
+<div id="setup-compare" class="setup-compare" hidden></div>
+<script src="{{ url_for('static', filename='setups.js') }}"></script>
+{% endblock %}

@@ -79,6 +79,17 @@ dashboard col nome di ciascuno; i duplicati vengono ignorati (lato agente e lato
 - `GET /api/session/<id>` — payload sessione (mappa, giri, canali core).
 - `GET /api/session/<id>/channel/<nome>` — singolo canale on-demand.
 
+## Setup condivisi (v1.3)
+
+L'agente sorveglia anche `Saved Games\ACE\Car Setups` e carica i file `.carsetup`
+(formato protobuf di ACE) sulla dashboard. Nella sezione **Setup** i file sono
+raggruppati per auto; per ognuno c'è autore, data e **download** (per rimetterlo nella
+propria cartella e usarlo in gioco). Spuntando due setup della stessa auto si ottiene il
+**confronto** dei parametri con evidenziati i valori diversi. Le etichette dei parametri
+(pressioni, camber, molle, ammortizzatori…) sono dedotte dalla struttura del file: dove
+non c'è certezza restano percorsi strutturali, ma il confronto evidenzia comunque ogni
+differenza. Per attivarlo serve la riga `setups_folder` nel `config.ini` dell'agente.
+
 ## Struttura dati
 
 - `DATA_DIR/ace.db` — metadati sessioni (SQLite).

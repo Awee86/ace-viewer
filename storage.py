@@ -49,6 +49,60 @@ def init_db():
             c.execute("ALTER TABLE sessions ADD COLUMN air_temp REAL")
         if "road_temp" not in cols:
             c.execute("ALTER TABLE sessions ADD COLUMN road_temp REAL")
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS setups (
+                id TEXT PRIMARY KEY,
+                name TEXT, car TEXT, preset TEXT,
+                uploader TEXT, sha TEXT,
+                params TEXT, created_at TEXT
+            )""")
+
+
+SETUP_DIR = os.path.join(DATA_DIR, "setups")
+os.makedirs(SETUP_DIR, exist_ok=True)
+
+
+def save_setup(raw_bytes, parsed, name, uploader, sha):
+    import uuid as _uuid
+    sid = _uuid.uuid4().hex[:12]
+    with open(os.path.join(SETUP_DIR, sid + ".carsetup"), "wb") as f:
+        f.write(raw_bytes)
+    with _conn() as c:
+        c.execute("""INSERT INTO setups (id,name,car,preset,uploader,sha,params,created_at)
+                     VALUES (?,?,?,?,?,?,?,?)""",
+                  (sid, name, parsed["car"], parsed.get("preset", ""), uploader, sha,
+                   json.dumps(parsed["params"]),
+                   datetime.now(timezone.utc).isoformat(timespec="seconds")))
+    return sid
+
+
+def find_setup_by_sha(sha):
+    with _conn() as c:
+        r = c.execute("SELECT id FROM setups WHERE sha=?", (sha,)).fetchone()
+        return r["id"] if r else None
+
+
+def list_setups():
+    with _conn() as c:
+        return [dict(r) for r in c.execute("SELECT * FROM setups ORDER BY car, created_at DESC")]
+
+
+def get_setup(sid):
+    with _conn() as c:
+        r = c.execute("SELECT * FROM setups WHERE id=?", (sid,)).fetchone()
+        return dict(r) if r else None
+
+
+def setup_file(sid):
+    return os.path.join(SETUP_DIR, sid + ".carsetup")
+
+
+def delete_setup(sid):
+    p = setup_file(sid)
+    if os.path.exists(p):
+        os.remove(p)
+    with _conn() as c:
+        c.execute("DELETE FROM setups WHERE id=?", (sid,))
 
 
 def sha_of(path):

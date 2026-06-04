@@ -1,14 +1,16 @@
 """ACE Viewer - visualizzatore telemetria MoTeC (.ld) per Assetto Corsa EVO.
 Flask + SQLite, deploy su Railway. Auth HTTP Basic per piccoli gruppi."""
 import os
+import json
 import tempfile
 from functools import wraps
 
 from flask import (Flask, request, render_template, redirect, url_for,
-                   jsonify, abort, Response)
+                   jsonify, abort, Response, send_file)
 
 import analysis
 import storage
+import carsetup
 from version import __version__
 
 app = Flask(__name__)
@@ -240,6 +242,71 @@ def api_lap(sid, lapn):
 @app.route("/healthz")
 def healthz():
     return "ok"
+
+
+# ---------------------------------------------------------------- setup
+@app.route("/api/ingest-setup", methods=["POST"])
+def api_ingest_setup():
+    token = os.environ.get("INGEST_TOKEN")
+    if not token:
+        return jsonify(error="ingest disabilitato"), 503
+    if request.headers.get("X-Ingest-Token") != token:
+        return jsonify(error="token non valido"), 401
+    uploader = request.form.get("uploader", "agent")
+    fs = request.files.getlist("files") + ([request.files["file"]] if "file" in request.files else [])
+    f = next((x for x in fs if x and x.filename), None)
+    if not f:
+        return jsonify(error="nessun file"), 400
+    raw = f.read()
+    import hashlib
+    sha = hashlib.sha256(raw).hexdigest()
+    ex = storage.find_setup_by_sha(sha)
+    if ex:
+        return jsonify(id=ex, duplicate=True, status="ok")
+    try:
+        parsed = carsetup.parse(raw)
+    except Exception as e:
+        return jsonify(error=f"parse: {e}"), 400
+    name = os.path.splitext(os.path.basename(f.filename))[0]
+    sid = storage.save_setup(raw, parsed, name, uploader, sha)
+    return jsonify(id=sid, duplicate=False, status="ok")
+
+
+@app.route("/setups")
+@require_auth
+def setups_view():
+    by_car = {}
+    for s in storage.list_setups():
+        by_car.setdefault(s["car"] or "—", []).append(s)
+    cars = [{"car": c, "setups": by_car[c]} for c in sorted(by_car)]
+    return render_template("setups.html", cars=cars, n=sum(len(c["setups"]) for c in cars))
+
+
+@app.route("/api/setup/<sid>")
+@require_auth
+def api_setup(sid):
+    s = storage.get_setup(sid)
+    if not s:
+        abort(404)
+    return jsonify({"id": sid, "name": s["name"], "car": s["car"],
+                    "uploader": s["uploader"], "params": json.loads(s["params"])})
+
+
+@app.route("/setups/<sid>/download")
+@require_auth
+def setup_download(sid):
+    s = storage.get_setup(sid)
+    if not s:
+        abort(404)
+    return send_file(storage.setup_file(sid), as_attachment=True,
+                     download_name=(s["name"] or "setup") + ".carsetup")
+
+
+@app.route("/setups/<sid>/delete", methods=["POST"])
+@require_auth
+def setup_delete(sid):
+    storage.delete_setup(sid)
+    return redirect(url_for("setups_view"))
 
 
 # ---------------------------------------------------------------- ingest agente

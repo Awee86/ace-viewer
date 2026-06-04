@@ -13,7 +13,7 @@ import configparser
 import requests
 
 APP_NAME = "ACE Agent"
-AGENT_VERSION = "1.2.3"
+AGENT_VERSION = "1.3.0"
 
 
 def base_dir():
@@ -37,7 +37,9 @@ token = CAMBIAMI
 uploader = Nico
 ; Cartella telemetrie MoTeC (lascia cosi' se usi il percorso standard)
 motec_folder = %USERPROFILE%\\Saved Games\\ACE\\MoTec
-; Ogni quanti secondi controllare la cartella
+; Cartella setup auto (lascia cosi' se usi il percorso standard)
+setups_folder = %USERPROFILE%\\Saved Games\\ACE\\Car Setups
+; Ogni quanti secondi controllare le cartelle
 poll_seconds = 15
 ; Eta' minima del file in secondi prima di caricarlo (evita file a meta' scrittura)
 min_age_seconds = 10
@@ -69,6 +71,7 @@ def load_config():
             "token": a.get("token", ""),
             "uploader": a.get("uploader", "agent"),
             "folder": os.path.expandvars(a.get("motec_folder", "")),
+            "setups_folder": os.path.expandvars(a.get("setups_folder", "")),
             "poll": a.getint("poll_seconds", 15),
             "min_age": a.getint("min_age_seconds", 10),
         }
@@ -105,11 +108,11 @@ def sha256(path):
     return h.hexdigest()
 
 
-def find_ld_files(folder):
+def find_files(folder, ext):
     out = []
-    for root, _dirs, names in os.walk(folder):
+    for root, _d, names in os.walk(folder):
         for n in names:
-            if n.lower().endswith(".ld"):
+            if n.lower().endswith(ext):
                 out.append(os.path.join(root, n))
     return out
 
@@ -119,49 +122,58 @@ def upload(cfg, ld_path):
     files = [("files", (os.path.basename(ld_path), open(ld_path, "rb"), "application/octet-stream"))]
     if os.path.exists(ldx_path):
         files.append(("files", (os.path.basename(ldx_path), open(ldx_path, "rb"), "application/octet-stream")))
-    r = requests.post(
-        cfg["url"] + "/api/ingest",
-        headers={"X-Ingest-Token": cfg["token"]},
-        data={"uploader": cfg["uploader"]},
-        files=files, timeout=120,
-    )
+    r = requests.post(cfg["url"] + "/api/ingest", headers={"X-Ingest-Token": cfg["token"]},
+                      data={"uploader": cfg["uploader"]}, files=files, timeout=120)
     r.raise_for_status()
     return r.json()
 
 
+def upload_setup(cfg, path):
+    files = [("files", (os.path.basename(path), open(path, "rb"), "application/octet-stream"))]
+    r = requests.post(cfg["url"] + "/api/ingest-setup", headers={"X-Ingest-Token": cfg["token"]},
+                      data={"uploader": cfg["uploader"]}, files=files, timeout=60)
+    r.raise_for_status()
+    return r.json()
+
+
+def _process(path, upload_fn, label, cfg, state, now):
+    sha = None
+    try:
+        if now - os.path.getmtime(path) < cfg["min_age"]:
+            return
+        sha = sha256(path)
+        if sha in state:
+            return
+        log(f"{label} {os.path.basename(path)} ...")
+        res = upload_fn(cfg, path)
+        state.add(sha); save_state(state)
+        log("  duplicato sul server" if res.get("duplicate") else f"  ok -> id {res.get('id')}")
+    except requests.HTTPError as e:
+        code = e.response.status_code if e.response is not None else 0
+        if code in (400, 422):
+            if sha: state.add(sha); save_state(state)
+            log("  ignorato (file non valido)")
+        elif code in (401, 403):
+            log("  TOKEN NON VALIDO: correggi 'token' in config.ini e riavvia.")
+        else:
+            log(f"  errore server {code}: riprovo dopo")
+    except requests.RequestException as e:
+        log(f"  errore rete: {e} (riprovo dopo)")
+    except Exception as e:
+        log(f"  errore: {e}")
+
+
 def scan_once(cfg, state):
-    if not os.path.isdir(cfg["folder"]):
-        log(f"Cartella non trovata: {cfg['folder']}")
-        return
     now = time.time()
-    for ld in find_ld_files(cfg["folder"]):
-        try:
-            if now - os.path.getmtime(ld) < cfg["min_age"]:
-                continue  # file forse ancora in scrittura
-            sha = sha256(ld)
-            if sha in state:
-                continue
-            log(f"Carico {os.path.basename(ld)} ...")
-            res = upload(cfg, ld)
-            state.add(sha)
-            save_state(state)
-            log("  duplicato sul server (gia' presente)" if res.get("duplicate")
-                else f"  ok -> id {res.get('id')}")
-        except requests.HTTPError as e:
-            code = e.response.status_code if e.response is not None else 0
-            if code in (400, 422):                 # file non valido: non riprovare
-                state.add(sha)
-                save_state(state)
-                log("  ignorato (file non valido o sessione vuota)")
-            elif code in (401, 403):               # problema di token: inutile insistere
-                log("  TOKEN NON VALIDO: correggi 'token' in config.ini e riavvia.")
-                return
-            else:
-                log(f"  errore server {code}: riprovo al prossimo giro")
-        except requests.RequestException as e:
-            log(f"  errore rete: {e} (riprovo al prossimo giro)")
-        except Exception as e:
-            log(f"  errore: {e}")
+    if os.path.isdir(cfg["folder"]):
+        for ld in find_files(cfg["folder"], ".ld"):
+            _process(ld, upload, "Carico", cfg, state, now)
+    else:
+        log(f"Cartella telemetria non trovata: {cfg['folder']}")
+    sf = cfg.get("setups_folder")
+    if sf and os.path.isdir(sf):
+        for sp in find_files(sf, ".carsetup"):
+            _process(sp, upload_setup, "Setup", cfg, state, now)
 
 
 def _run():
