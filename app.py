@@ -66,26 +66,23 @@ def _laptime_to_sec(s):
 
 
 def _build_aggregate(sessions):
-    """Raggruppa per pista, e dentro per pilota (leaderboard del best lap)."""
-    tracks = {}
+    """Gerarchia: Pilota -> Tracciato -> Auto -> sessioni."""
+    drv = {}
     for s in sessions:
-        tk = s["track"] or "—"
-        t = tracks.setdefault(tk, {"drivers": {}, "sessions": []})
-        t["sessions"].append(s)
-        sec = _laptime_to_sec(s["best_lap_str"])
-        d = t["drivers"].setdefault(s["uploader"], {
-            "driver": s["uploader"], "best_sec": 1e9, "best_str": "-",
-            "sessions": 0, "laps": 0, "v_max": 0})
-        d["sessions"] += 1
-        d["laps"] += s["n_laps"] or 0
-        d["v_max"] = max(d["v_max"], s["v_max"] or 0)
-        if sec < d["best_sec"]:
-            d["best_sec"], d["best_str"] = sec, s["best_lap_str"]
+        d = drv.setdefault(s["uploader"] or "—", {})
+        t = d.setdefault(s["track"] or "—", {})
+        t.setdefault(s["car"] or "—", []).append(s)
     out = []
-    for tk in sorted(tracks):
-        drivers = sorted(tracks[tk]["drivers"].values(), key=lambda d: d["best_sec"])
-        out.append({"track": tk, "drivers": drivers,
-                    "sessions": tracks[tk]["sessions"]})
+    for dn in sorted(drv):
+        tracks = []
+        for tn in sorted(drv[dn]):
+            cars = []
+            for cn in sorted(drv[dn][tn]):
+                sess = sorted(drv[dn][tn][cn], key=lambda s: _laptime_to_sec(s["best_lap_str"]))
+                best = sess[0]["best_lap_str"] if sess else "-"
+                cars.append({"car": cn, "sessions": sess, "best": best})
+            tracks.append({"track": tn, "cars": cars})
+        out.append({"driver": dn, "tracks": tracks})
     return out
 
 

@@ -1,10 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <form class="upload" method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data">
-  <div>
-    <h2>Carica sessione</h2>
-    <p>Seleziona il file <code>.ld</code> (e l'<code>.ldx</code> per i giri).</p>
-  </div>
+  <div><h2>Carica sessione</h2><p>File <code>.ld</code> + <code>.ldx</code>.</p></div>
   <input type="file" name="files" accept=".ld,.ldx" multiple required>
   <button class="btn" type="submit">Importa</button>
 </form>
@@ -13,38 +10,37 @@
   <div class="empty">Nessuna sessione caricata. Importa un file <code>.ld</code> per iniziare.</div>
 {% endif %}
 
-{% for t in aggregate %}
-<section class="track-block">
-  <h2 class="track-title">{{ t.track }}</h2>
-
-  <table class="sessions leaderboard">
-    <thead><tr><th>#</th><th>Pilota</th><th>Best lap</th><th>Sessioni</th><th>Giri</th><th>V max</th></tr></thead>
-    <tbody>
-    {% for d in t.drivers %}
-      <tr>
-        <td class="num" style="color:var(--dim)">{{ loop.index }}</td>
-        <td>{{ d.driver }}</td>
-        <td class="num best">{{ d.best_str }}</td>
-        <td class="num">{{ d.sessions }}</td>
-        <td class="num">{{ d.laps }}</td>
-        <td class="num">{{ d.v_max }} <small>km/h</small></td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-
-  <div class="sess-list">
-    {% for s in t.sessions %}
-    <a class="sess-card" href="{{ url_for('session_view', sid=s.id) }}">
-      <div class="sc-top"><span class="tag">{{ s.car }}</span><span class="sc-driver">{{ s.uploader }}</span></div>
-      <div class="sc-mid"><span class="best">{{ s.best_lap_str }}</span> <span class="sc-meta">{{ s.n_laps }} giri</span></div>
-      <div class="sc-bot">
-        {{ s.date }} {{ s.time }}
-        {% if s.air_temp is not none %} · aria {{ s.air_temp }}° · asfalto {{ s.road_temp }}°{% endif %}
-      </div>
-    </a>
+{% for d in aggregate %}
+<section class="agg-driver">
+  <h2 class="agg-d">{{ d.driver }}</h2>
+  {% for t in d.tracks %}
+  <div class="agg-track">
+    <h3 class="agg-t">{{ t.track }}</h3>
+    {% for car in t.cars %}
+    <div class="agg-car">
+      <div class="agg-c"><span class="tag">{{ car.car }}</span><span class="agg-cbest">best {{ car.best }}</span></div>
+      <table class="agg-sess">
+        <tbody>
+        {% for s in car.sessions %}
+        <tr onclick="location.href='{{ url_for('session_view', sid=s.id) }}'">
+          <td class="num agg-time best">{{ s.best_lap_str }}</td>
+          <td class="num">{{ s.n_laps }} giri</td>
+          <td class="num">{{ s.v_max }} <small>km/h</small></td>
+          <td class="agg-date">{{ s.date }} {{ s.time }}</td>
+          <td class="agg-w">{% if s.air_temp is not none %}{{ s.air_temp }}°/{{ s.road_temp }}°{% endif %}</td>
+          <td class="agg-del" onclick="event.stopPropagation()">
+            <form method="post" action="{{ url_for('session_delete', sid=s.id) }}" onsubmit="return confirm('Eliminare?')">
+              <button class="xbtn" title="elimina">✕</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% endfor %}
   </div>
+  {% endfor %}
 </section>
 {% endfor %}
 {% endblock %}
