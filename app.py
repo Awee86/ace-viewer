@@ -81,24 +81,29 @@ def _datekey(s):
 
 
 def _build_aggregate(sessions):
-    """Una colonna per pilota; dentro, per pista, la lista sessioni (ordinabile lato client)."""
+    """Colonna per pilota; dentro: Tracciato -> Auto (con best per auto) -> sessioni."""
     norm = lambda x: (x or "").strip().lower()
     by_driver = {}
     for s in sessions:
         e = by_driver.setdefault(norm(s["uploader"]), {"display": s["uploader"] or "—", "tracks": {}})
-        e["tracks"].setdefault(s["track"] or "—", []).append(s)
+        t = e["tracks"].setdefault(s["track"] or "—", {})
+        t.setdefault(s["car"] or "—", []).append(s)
 
     def pack(display, entry):
         tracks = []
         if entry:
             for tn in sorted(entry["tracks"]):
-                sess = entry["tracks"][tn]
-                for s in sess:
-                    s["datekey"] = _datekey(s)
-                    s["lapsec"] = _laptime_to_sec(s["best_lap_str"])
-                sess = sorted(sess, key=lambda s: s["datekey"], reverse=True)  # default: piu' recenti
-                best = min((s["best_lap_str"] for s in sess), key=_laptime_to_sec)
-                tracks.append({"track": tn, "sessions": sess, "best": best})
+                cars = []
+                for cn in sorted(entry["tracks"][tn]):
+                    sess = entry["tracks"][tn][cn]
+                    for s in sess:
+                        s["datekey"] = _datekey(s)
+                        s["lapsec"] = _laptime_to_sec(s["best_lap_str"])
+                    sess = sorted(sess, key=lambda s: s["datekey"], reverse=True)
+                    best = min((s["best_lap_str"] for s in sess), key=_laptime_to_sec)
+                    cars.append({"car": cn, "sessions": sess, "best": best})
+                tracks.append({"track": tn, "cars": cars,
+                               "n": sum(len(c["sessions"]) for c in cars)})
         return {"driver": display, "tracks": tracks}
 
     columns, used = [], set()

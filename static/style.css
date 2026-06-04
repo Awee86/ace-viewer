@@ -257,3 +257,8 @@ select,.chip{font-family:var(--mono);font-size:12px;background:var(--panel2);
 .set-detail{padding:6px 6px 10px 26px;border-bottom:1px solid var(--line);background:#0f1216}
 .set-detail .sp-table{font-size:11px;width:100%;border-collapse:collapse}
 .set-detail .sp-table td{padding:3px 8px;border-bottom:1px solid var(--line)}
+
+/* ---- v1.4.2 livello auto in Home ---- */
+.trk-car{margin:2px 0 8px}
+.trk-car-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 4px 3px}
+.trk-car-head .trk-best{margin-left:0}
