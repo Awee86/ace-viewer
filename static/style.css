@@ -262,3 +262,30 @@ select,.chip{font-family:var(--mono);font-size:12px;background:var(--panel2);
 .trk-car{margin:2px 0 8px}
 .trk-car-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 4px 3px}
 .trk-car-head .trk-best{margin-left:0}
+
+/* ---- v1.5 coach AI + editor curve ---- */
+.coach-wrap{max-width:780px}
+.coach-intro a{color:var(--accent2)}
+.chat{display:flex;flex-direction:column;gap:10px;margin:14px 0;min-height:120px}
+.msg{padding:8px 12px;border-radius:10px;max-width:92%}
+.msg .who{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);display:block;margin-bottom:3px}
+.msg .txt{white-space:pre-wrap;font-size:13px;line-height:1.55}
+.msg.me{align-self:flex-end;background:var(--accent);color:#06251f}
+.msg.me .who{color:#06251f;opacity:.75}
+.msg.ai{align-self:flex-start;background:var(--panel);border:1px solid var(--line)}
+.msg.ai.err{border-color:var(--amber)}.msg.ai.err .txt{color:var(--amber)}
+.msg.wait .txt{color:var(--dim);font-style:italic}
+.msg .meta{margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--accent2)}
+.coach-input{display:flex;gap:8px;align-items:flex-end}
+.coach-input textarea{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:8px;font:inherit;resize:vertical}
+
+.trk-select{margin:10px 0}
+.trk-select select{background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
+.corners-edit{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+.corners-map svg{width:100%;height:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.corners-map .track{fill:none;stroke:var(--accent2);stroke-width:1.2}
+.corners-map .apx{fill:var(--accent);stroke:#000;stroke-width:.3}
+.corners-map .apxn{fill:#fff;font-size:4px;text-anchor:middle;font-family:var(--mono);font-weight:700}
+.corners-list .cname{width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:5px;color:var(--txt);padding:4px 6px}
+.corners-actions{margin-top:10px;display:flex;gap:8px;align-items:center}
+@media(max-width:900px){.corners-edit{grid-template-columns:1fr}}

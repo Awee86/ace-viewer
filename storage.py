@@ -59,10 +59,28 @@ def init_db():
         scols = [r[1] for r in c.execute("PRAGMA table_info(setups)")]
         if "track" not in scols:
             c.execute("ALTER TABLE setups ADD COLUMN track TEXT")
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS corners (
+                track TEXT PRIMARY KEY,
+                data TEXT
+            )""")
 
 
 SETUP_DIR = os.path.join(DATA_DIR, "setups")
 os.makedirs(SETUP_DIR, exist_ok=True)
+
+
+def get_corners(track):
+    with _conn() as c:
+        r = c.execute("SELECT data FROM corners WHERE track=?", (track,)).fetchone()
+        return json.loads(r["data"]) if r else None
+
+
+def save_corners(track, data):
+    with _conn() as c:
+        c.execute("INSERT INTO corners (track,data) VALUES (?,?) "
+                  "ON CONFLICT(track) DO UPDATE SET data=excluded.data",
+                  (track, json.dumps(data)))
 
 
 def save_setup(raw_bytes, parsed, name, uploader, sha, car=None, track=None):

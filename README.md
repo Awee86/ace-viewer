@@ -90,6 +90,24 @@ propria cartella e usarlo in gioco). Spuntando due setup della stessa auto si ot
 non c'è certezza restano percorsi strutturali, ma il confronto evidenzia comunque ogni
 differenza. Per attivarlo serve la riga `setups_folder` nel `config.ini` dell'agente.
 
+## Coach AI (v1.5)
+
+Sezione **Coach**: ogni pilota (identificato dal login) può fare domande in linguaggio
+naturale tipo "alla 4 di Spa la macchina scoda quando accelero". Il server rileva
+pista, auto e numero curva, raccoglie le **metriche reali per-curva** (velocità d'ingresso,
+apice, punto di frenata, riapertura gas) del pilota e dei compagni, più il **setup** dell'auto,
+e interroga l'API di Claude per dare consigli di guida e setup basati sui dati.
+
+Le curve sono **rilevate in automatico** dal giro più veloce (minimi di velocità prominenti)
+e numerate in ordine; dalla pagina **Coach → Gestisci numerazione curve** si possono
+rinominare, eliminare quelle sbagliate o ricostruirle.
+
+Configurazione su Railway:
+- `ANTHROPIC_API_KEY` — chiave API (da console.anthropic.com). Senza, il coach spiega come configurarla.
+- `COACH_MODEL` — opzionale, default `claude-sonnet-4-6`.
+
+Nota: a ogni domanda i dati di telemetria/setup del contesto vengono inviati all'API; il costo è a consumo.
+
 ## Struttura dati
 
 - `DATA_DIR/ace.db` — metadati sessioni (SQLite).

@@ -11,6 +11,7 @@ from flask import (Flask, request, render_template, redirect, url_for,
 import analysis
 import storage
 import carsetup
+import coach
 from version import __version__
 
 app = Flask(__name__)
@@ -247,6 +248,58 @@ def api_lap(sid, lapn):
 @app.route("/healthz")
 def healthz():
     return "ok"
+
+
+# ---------------------------------------------------------------- coach AI
+@app.route("/coach")
+@require_auth
+def coach_view():
+    return render_template("coach.html", driver=request.user.title())
+
+
+@app.route("/api/coach", methods=["POST"])
+@require_auth
+def api_coach():
+    data = request.get_json(silent=True) or {}
+    q = (data.get("question") or request.form.get("question", "")).strip()
+    if not q:
+        return jsonify(error="Scrivi una domanda."), 400
+    return jsonify(coach.ask(request.user.title(), q))
+
+
+@app.route("/corners")
+@require_auth
+def corners_view():
+    track = request.args.get("track", "")
+    cmap = coach.get_or_build_corners(track) if track else []
+    ref = coach.reference_path(track) if track else None
+    tracks = sorted({s["track"] for s in storage.list_sessions() if s["track"]})
+    return render_template("corners.html", track=track, corners=cmap, ref=ref, tracks=tracks)
+
+
+@app.route("/api/corners", methods=["POST"])
+@require_auth
+def api_corners_save():
+    d = request.json or {}
+    track = d.get("track")
+    cs = d.get("corners")
+    if not track or cs is None:
+        return jsonify(error="dati mancanti"), 400
+    for i, c in enumerate(cs, 1):
+        c["n"] = i
+    storage.save_corners(track, cs)
+    return jsonify(ok=True, corners=cs)
+
+
+@app.route("/api/corners/rebuild", methods=["POST"])
+@require_auth
+def api_corners_rebuild():
+    track = (request.json or {}).get("track")
+    if not track:
+        return jsonify(error="track mancante"), 400
+    storage.save_corners(track, [])      # azzera
+    cs = coach.get_or_build_corners(track)
+    return jsonify(ok=True, corners=cs)
 
 
 # ---------------------------------------------------------------- setup

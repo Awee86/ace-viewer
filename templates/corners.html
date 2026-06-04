@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Curve · ACE Viewer{% endblock %}
+{% block crumb %}Numerazione curve{% endblock %}
+{% block content %}
+<div class="setup-head">
+  <h2>Numerazione curve</h2>
+  <p class="dcol-empty" style="margin:0">Le curve sono rilevate in automatico dal giro piu' veloce. Rinominale o eliminane di sbagliate, poi salva.</p>
+</div>
+<form method="get" class="trk-select">
+  <label>Pista:
+    <select name="track" onchange="this.form.submit()">
+      <option value="">— scegli —</option>
+      {% for t in tracks %}<option value="{{ t }}" {{ 'selected' if t==track }}>{{ t }}</option>{% endfor %}
+    </select>
+  </label>
+</form>
+
+{% if track %}
+<div class="corners-edit">
+  <div class="corners-map">
+    {% if ref and ref.points %}
+    <svg id="cmap" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"></svg>
+    <script>window.REF={{ ref|tojson }};</script>
+    {% else %}<p class="dcol-empty">Mappa non disponibile.</p>{% endif %}
+  </div>
+  <div class="corners-list">
+    <table class="ts-table" id="clist"><thead><tr><th>#</th><th>Nome</th><th></th></tr></thead><tbody></tbody></table>
+    <div class="corners-actions">
+      <button class="btn" id="save">Salva</button>
+      <button class="chip" id="rebuild">Ricostruisci da telemetria</button>
+    </div>
+  </div>
+</div>
+<script>window.TRACK={{ track|tojson }};window.CORNERS={{ corners|tojson }};</script>
+<script src="{{ url_for('static', filename='corners.js') }}"></script>
+{% endif %}
+{% endblock %}
