@@ -16,12 +16,30 @@
   <div class="spacer"></div>
   <a href="{{ url_for('index') }}" class="crumb">Home</a>
   <a href="{{ url_for('setups_view') }}" class="crumb">Setup</a>
-  <a href="{{ url_for('coach_view') }}" class="crumb">Coach</a>
+  <a href="#" id="coach-open" class="crumb">Coach</a>
 </header>
 <main>{% block content %}{% endblock %}</main>
 <footer style="text-align:center;color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:11px;padding:20px 0 28px">
   ACE Viewer v{{ app_version }}
 </footer>
+<div id="coachw" class="coachw collapsed">
+  <button id="coachw-toggle" class="coachw-toggle">Coach AI</button>
+  <div class="coachw-panel">
+    <div class="coachw-head">
+      <span>Coach AI</span>
+      <label class="usedata-lbl"><input type="checkbox" id="coachw-usedata"> usa i miei dati</label>
+      <button id="coachw-clear" class="coachw-min" title="pulisci">⟲</button>
+      <button id="coachw-min" class="coachw-min" title="chiudi">—</button>
+    </div>
+    <div id="coachw-msgs" class="coachw-msgs"></div>
+    <div class="coachw-input">
+      <textarea id="coachw-q" rows="1" placeholder="Chiedi al coach..."></textarea>
+      <button id="coachw-send" title="invia">&#8593;</button>
+    </div>
+  </div>
+</div>
+<script>window.COACH_DRIVER="{{ coach_driver }}";</script>
+<script src="{{ url_for('static', filename='coachwidget.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/uplot@1.6.30/dist/uPlot.iife.min.js"></script>
 {% block scripts %}{% endblock %}
 </body>

@@ -21,7 +21,8 @@ storage.init_db()
 
 @app.context_processor
 def inject_version():
-    return {"app_version": __version__}
+    return {"app_version": __version__,
+            "coach_driver": (getattr(request, "user", "") or "").title()}
 
 
 # ---------------------------------------------------------------- auth
@@ -254,7 +255,7 @@ def healthz():
 @app.route("/coach")
 @require_auth
 def coach_view():
-    return render_template("coach.html", driver=request.user.title())
+    return redirect(url_for("index"))
 
 
 @app.route("/api/coach", methods=["POST"])
