@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}ACE Viewer{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uplot@1.6.30/dist/uPlot.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="top">
+  <div class="logo"><b>ACE</b> Viewer</div>
+  <div class="crumb">{% block crumb %}Telemetria MoTeC · Assetto Corsa EVO{% endblock %}</div>
+  <div class="spacer"></div>
+  <a href="{{ url_for('index') }}" class="crumb">Sessioni</a>
+</header>
+<main>{% block content %}{% endblock %}</main>
+<footer style="text-align:center;color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:11px;padding:20px 0 28px">
+  ACE Viewer v{{ app_version }}
+</footer>
+<script src="https://cdn.jsdelivr.net/npm/uplot@1.6.30/dist/uPlot.iife.min.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

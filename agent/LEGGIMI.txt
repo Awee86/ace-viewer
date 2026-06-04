@@ -1,0 +1,35 @@
+ACE AGENT - istruzioni
+======================
+
+Questo programmino carica in automatico le tue telemetrie di Assetto Corsa EVO
+sulla dashboard condivisa. Non serve installare niente: e' un unico file .exe.
+
+PRIMA CONFIGURAZIONE (una volta sola)
+-------------------------------------
+1. Metti "ace-agent.exe" in una cartella tua (es. C:\ace-agent).
+2. Fai doppio clic su ace-agent.exe.
+   La prima volta crea un file "config.ini" e si chiude.
+   (Windows potrebbe avvisare che l'app e' sconosciuta: clicca
+    "Maggiori informazioni" -> "Esegui comunque". E' normale per un
+    programma non firmato.)
+3. Apri "config.ini" con il Blocco note e compila:
+     dashboard_url = (l'indirizzo della dashboard che ti ha dato Ernesto)
+     token         = (il token che ti ha dato Ernesto)
+     uploader      = il tuo nome (es. Nico)
+   Lascia "motec_folder" com'e' se hai installato il gioco nel modo standard.
+   Salva e chiudi.
+
+USO DI TUTTI I GIORNI
+---------------------
+- Fai doppio clic su ace-agent.exe prima o durante la sessione di gioco e
+  lascialo aperto: controlla la cartella ogni 15 secondi e carica le sessioni
+  nuove da solo. Le trovi sulla dashboard col tuo nome.
+- Le sessioni gia' caricate non vengono ricaricate.
+
+AVVIO AUTOMATICO (opzionale)
+----------------------------
+Per farlo partire da solo all'accensione del PC:
+1. Premi Win+R, scrivi  shell:startup  e premi Invio.
+2. Trascina nella cartella che si apre un collegamento ad ace-agent.exe.
+
+Problemi? Apri "agent.log" nella stessa cartella: c'e' scritto cosa succede.

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ s.track }} · ACE Viewer{% endblock %}
+{% block crumb %}{{ s.car }} · {{ s.track }}{% endblock %}
+{% block content %}
+<div class="statbar">
+  <div class="stat"><div class="k">Pista</div><div class="v" style="font-size:16px">{{ s.track or '—' }}</div></div>
+  <div class="stat"><div class="k">Data</div><div class="v" style="font-size:16px">{{ s.date }} {{ s.time }}</div></div>
+  <div class="stat"><div class="k">Durata</div><div class="v">{{ '%d:%02d'|format((s.duration//60)|int,(s.duration%60)|int) }}</div></div>
+  <div class="stat"><div class="k">Best lap</div><div class="v best">{{ s.best_lap_str }}</div></div>
+  <div class="stat"><div class="k">V max</div><div class="v">{{ s.v_max }} <small>km/h</small></div></div>
+  <div class="stat"><div class="k">Distanza</div><div class="v">{{ s.distance_km }} <small>km</small></div></div>
+</div>
+
+<div class="layout">
+  <div class="panel">
+    <h3>Giri</h3>
+    <table class="laps" id="laps">
+      <thead><tr><th>Giro</th><th>Tempo</th><th>V max</th><th>V med</th></tr></thead>
+      <tbody id="laps-body"></tbody>
+    </table>
+    <p id="laps-note" style="color:var(--dim);font-size:11px;margin-top:10px"></p>
+  </div>
+
+  <div>
+    <div class="panel" id="map-wrap">
+      <h3>Tracciato <span style="color:var(--dim);text-transform:none;letter-spacing:0">(ricostruito · velocità + yaw)</span></h3>
+      <canvas id="map" width="900" height="900"></canvas>
+      <div class="maptools">
+        <label class="crumb" style="text-transform:none">Colora per</label>
+        <select id="color-chan"></select>
+        <span class="legend" id="map-legend"></span>
+      </div>
+    </div>
+
+    <div class="charts" id="charts"></div>
+
+    <div class="panel" style="margin-top:14px">
+      <h3>Canali aggiuntivi</h3>
+      <div class="chanpick" id="chanpick"></div>
+    </div>
+  </div>
+</div>
+
+<script>const SID="{{ s.id }}";</script>
+<script src="{{ url_for('static', filename='session.js') }}"></script>
+{% endblock %}

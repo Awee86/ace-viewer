@@ -1,0 +1,181 @@
+"""ACE Viewer - visualizzatore telemetria MoTeC (.ld) per Assetto Corsa EVO.
+Flask + SQLite, deploy su Railway. Auth HTTP Basic per piccoli gruppi."""
+import os
+import tempfile
+from functools import wraps
+
+from flask import (Flask, request, render_template, redirect, url_for,
+                   jsonify, abort, Response)
+
+import analysis
+import storage
+from version import __version__
+
+app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 64 * 1024 * 1024  # 64 MB upload
+storage.init_db()
+
+
+@app.context_processor
+def inject_version():
+    return {"app_version": __version__}
+
+
+# ---------------------------------------------------------------- auth
+def _users():
+    raw = os.environ.get("USERS", "ace:ace")  # default solo per uso locale
+    out = {}
+    for pair in raw.split(","):
+        if ":" in pair:
+            u, p = pair.split(":", 1)
+            out[u.strip()] = p.strip()
+    return out
+
+
+def require_auth(f):
+    @wraps(f)
+    def wrapper(*a, **kw):
+        auth = request.authorization
+        users = _users()
+        if not auth or users.get(auth.username) != auth.password:
+            return Response("Accesso riservato", 401,
+                            {"WWW-Authenticate": 'Basic realm="ACE Viewer"'})
+        request.user = auth.username
+        return f(*a, **kw)
+    return wrapper
+
+
+def _ingest(ld_path, ldx_path, orig, uploader):
+    """Elabora e salva una sessione, saltando i duplicati (per hash). Ritorna (sid, dup)."""
+    sha = storage.sha_of(ld_path)
+    existing = storage.find_by_sha(sha)
+    if existing:
+        return existing, True
+    payload = analysis.process(ld_path, ldx_path)
+    sid = storage.save_session(payload, ld_path, ldx_path, orig, uploader, sha=sha)
+    return sid, False
+
+
+# ---------------------------------------------------------------- pagine
+@app.route("/")
+@require_auth
+def index():
+    return render_template("index.html", sessions=storage.list_sessions())
+
+
+@app.route("/upload", methods=["POST"])
+@require_auth
+def upload():
+    files = request.files.getlist("files")
+    ld_path = ldx_path = None
+    tmp = tempfile.mkdtemp()
+    orig = None
+    for f in files:
+        if not f.filename:
+            continue
+        dest = os.path.join(tmp, os.path.basename(f.filename))
+        f.save(dest)
+        low = f.filename.lower()
+        if low.endswith(".ld"):
+            ld_path, orig = dest, os.path.basename(f.filename)
+        elif low.endswith(".ldx"):
+            ldx_path = dest
+    if not ld_path:
+        return ("Serve almeno un file .ld", 400)
+    if not ldx_path:
+        cand = ld_path[:-3] + ".ldx"
+        if os.path.exists(cand):
+            ldx_path = cand
+    try:
+        _ingest(ld_path, ldx_path, orig, request.user)
+    except Exception as e:
+        return (f"Errore nel parsing: {e}", 400)
+    return redirect(url_for("index"))
+
+
+@app.route("/session/<sid>")
+@require_auth
+def session_view(sid):
+    meta = storage.get_session_meta(sid)
+    if not meta:
+        abort(404)
+    return render_template("session.html", s=meta)
+
+
+@app.route("/session/<sid>/delete", methods=["POST"])
+@require_auth
+def session_delete(sid):
+    storage.delete_session(sid)
+    return redirect(url_for("index"))
+
+
+# ---------------------------------------------------------------- API
+@app.route("/api/session/<sid>")
+@require_auth
+def api_session(sid):
+    p = storage.load_processed(sid)
+    if not p:
+        abort(404)
+    core = {n: p["channels"][n] for n in analysis.CORE_CHANNELS if n in p["channels"]}
+    return jsonify({
+        "meta": p["meta"],
+        "x": p["x"], "y": p["y"],
+        "laps": p["laps"],
+        "best_lap": p["best_lap"], "best_lap_str": p["best_lap_str"],
+        "session_stats": p["session_stats"],
+        "channels": core,
+    })
+
+
+@app.route("/api/session/<sid>/channel/<name>")
+@require_auth
+def api_channel(sid, name):
+    p = storage.load_processed(sid)
+    if not p or name not in p["channels"]:
+        abort(404)
+    return jsonify({name: p["channels"][name]})
+
+
+@app.route("/healthz")
+def healthz():
+    return "ok"
+
+
+# ---------------------------------------------------------------- ingest agente
+@app.route("/api/ingest", methods=["POST"])
+def api_ingest():
+    """Endpoint usato dall'agente locale. Auth via header X-Ingest-Token."""
+    token = os.environ.get("INGEST_TOKEN")
+    if not token:
+        return jsonify(error="ingest disabilitato (INGEST_TOKEN non impostato)"), 503
+    if request.headers.get("X-Ingest-Token") != token:
+        return jsonify(error="token non valido"), 401
+
+    uploader = request.form.get("uploader", "agent")
+    files = request.files.getlist("files")
+    ld_path = ldx_path = orig = None
+    tmp = tempfile.mkdtemp()
+    for f in files:
+        if not f.filename:
+            continue
+        dest = os.path.join(tmp, os.path.basename(f.filename))
+        f.save(dest)
+        if f.filename.lower().endswith(".ld"):
+            ld_path, orig = dest, os.path.basename(f.filename)
+        elif f.filename.lower().endswith(".ldx"):
+            ldx_path = dest
+    if not ld_path:
+        return jsonify(error="nessun file .ld"), 400
+    if not ldx_path:
+        cand = ld_path[:-3] + ".ldx"
+        if os.path.exists(cand):
+            ldx_path = cand
+    try:
+        sid, dup = _ingest(ld_path, ldx_path, orig, uploader)
+    except Exception as e:
+        return jsonify(error=f"parsing: {e}"), 400
+    return jsonify(id=sid, duplicate=dup, status="ok")
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)

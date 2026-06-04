@@ -1,0 +1,160 @@
+"""Persistenza: SQLite per i metadati delle sessioni + payload elaborato su disco (json.gz)."""
+import os
+import re
+import json
+import gzip
+import sqlite3
+import uuid
+from datetime import datetime, timezone
+
+import numpy as np
+
+DATA_DIR = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(__file__), "data"))
+DB_PATH = os.path.join(DATA_DIR, "ace.db")
+UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
+PROC_DIR = os.path.join(DATA_DIR, "processed")
+
+for d in (DATA_DIR, UPLOAD_DIR, PROC_DIR):
+    os.makedirs(d, exist_ok=True)
+
+
+def _conn():
+    c = sqlite3.connect(DB_PATH)
+    c.row_factory = sqlite3.Row
+    return c
+
+
+def init_db():
+    with _conn() as c:
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                id TEXT PRIMARY KEY,
+                orig_name TEXT,
+                car TEXT, track TEXT,
+                date TEXT, time TEXT,
+                duration REAL,
+                n_laps INTEGER,
+                best_lap_str TEXT,
+                v_max REAL,
+                distance_km REAL,
+                uploader TEXT,
+                created_at TEXT,
+                sha TEXT
+            )""")
+        # migrazione soft per db gia' esistenti
+        cols = [r[1] for r in c.execute("PRAGMA table_info(sessions)")]
+        if "sha" not in cols:
+            c.execute("ALTER TABLE sessions ADD COLUMN sha TEXT")
+
+
+def sha_of(path):
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def find_by_sha(sha):
+    with _conn() as c:
+        r = c.execute("SELECT id FROM sessions WHERE sha=?", (sha,)).fetchone()
+        return r["id"] if r else None
+
+
+def parse_filename(name):
+    """Estrae auto/pista dal nome file dell'export ACE (best-effort)."""
+    stem = re.sub(r"\.(ld|ldx)$", "", name, flags=re.I)
+    car, track = stem, ""
+    m = re.match(r"(.+?)_preset", stem)
+    if m:
+        car = m.group(1).replace("_", " ")
+    wk = r"(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)"
+    # pista: segmento che inizia con Circuit/Track fino al giorno della settimana
+    mt = re.search(r"_((?:Circuit|Track)[A-Za-z0-9_]*?)_" + wk, stem)
+    if not mt:  # ripiego: chunk dopo "_mech_<n>_" fino al giorno
+        mt = re.search(r"_mech_\d+_(.+?)_" + wk, stem)
+    if mt:
+        track = mt.group(1).replace("_", " ").strip()
+    elif "Spa" in stem:
+        track = "Spa Francorchamps"
+    return car.strip(), track.strip()
+
+
+def _to_jsonable(payload):
+    def arr(a):
+        return np.round(np.asarray(a, dtype=float), 3).tolist()
+    out = {
+        "meta": payload["meta"],
+        "t": arr(payload["t"]),
+        "x": np.round(payload["x"], 1).tolist(),
+        "y": np.round(payload["y"], 1).tolist(),
+        "laps": payload["laps"],
+        "best_lap": payload["best_lap"],
+        "best_lap_str": payload["best_lap_str"],
+        "session_stats": payload["session_stats"],
+        "channels": {n: {"unit": d["unit"], "values": arr(d["values"])}
+                     for n, d in payload["channels"].items()},
+    }
+    return out
+
+
+def save_session(payload, ld_path, ldx_path, orig_name, uploader, sha=None):
+    if sha is None:
+        sha = sha_of(ld_path)
+    sid = uuid.uuid4().hex[:12]
+    sdir = os.path.join(UPLOAD_DIR, sid)
+    os.makedirs(sdir, exist_ok=True)
+    # conserva i file originali
+    import shutil
+    shutil.copy(ld_path, os.path.join(sdir, os.path.basename(ld_path)))
+    if ldx_path and os.path.exists(ldx_path):
+        shutil.copy(ldx_path, os.path.join(sdir, os.path.basename(ldx_path)))
+    # payload elaborato
+    with gzip.open(os.path.join(PROC_DIR, sid + ".json.gz"), "wt", encoding="utf-8") as f:
+        json.dump(_to_jsonable(payload), f)
+
+    car, track = parse_filename(orig_name)
+    complete_laps = [l for l in payload["laps"] if l["complete"]]
+    with _conn() as c:
+        c.execute("""INSERT INTO sessions
+            (id,orig_name,car,track,date,time,duration,n_laps,best_lap_str,
+             v_max,distance_km,uploader,created_at,sha)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (sid, orig_name, car, track,
+             payload["meta"]["date"], payload["meta"]["time"],
+             payload["meta"]["duration"], len(complete_laps),
+             payload["best_lap_str"], payload["session_stats"]["v_max"],
+             payload["session_stats"]["distance_km"], uploader,
+             datetime.now(timezone.utc).isoformat(timespec="seconds"), sha))
+    return sid
+
+
+def list_sessions():
+    with _conn() as c:
+        return [dict(r) for r in c.execute(
+            "SELECT * FROM sessions ORDER BY created_at DESC")]
+
+
+def get_session_meta(sid):
+    with _conn() as c:
+        r = c.execute("SELECT * FROM sessions WHERE id=?", (sid,)).fetchone()
+        return dict(r) if r else None
+
+
+def load_processed(sid):
+    p = os.path.join(PROC_DIR, sid + ".json.gz")
+    if not os.path.exists(p):
+        return None
+    with gzip.open(p, "rt", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def delete_session(sid):
+    import shutil
+    shutil.rmtree(os.path.join(UPLOAD_DIR, sid), ignore_errors=True)
+    p = os.path.join(PROC_DIR, sid + ".json.gz")
+    if os.path.exists(p):
+        os.remove(p)
+    with _conn() as c:
+        c.execute("DELETE FROM sessions WHERE id=?", (sid,))
