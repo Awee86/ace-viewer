@@ -70,32 +70,40 @@ def _driver_columns():
     return [d.strip() for d in raw.split(",") if d.strip()]
 
 
+def _datekey(s):
+    try:
+        d = (s["date"] or "").split("/")          # dd/mm/yyyy
+        return d[2] + d[1].zfill(2) + d[0].zfill(2) + (s["time"] or "").replace(":", "")
+    except (IndexError, AttributeError):
+        return "0"
+
+
 def _build_aggregate(sessions):
-    """Una colonna per pilota (Pilota -> Tracciato -> Auto -> sessioni)."""
+    """Una colonna per pilota; dentro, per pista, la lista sessioni (ordinabile lato client)."""
     norm = lambda x: (x or "").strip().lower()
     by_driver = {}
     for s in sessions:
         e = by_driver.setdefault(norm(s["uploader"]), {"display": s["uploader"] or "—", "tracks": {}})
-        t = e["tracks"].setdefault(s["track"] or "—", {})
-        t.setdefault(s["car"] or "—", []).append(s)
+        e["tracks"].setdefault(s["track"] or "—", []).append(s)
 
     def pack(display, entry):
         tracks = []
         if entry:
             for tn in sorted(entry["tracks"]):
-                cars = []
-                for cn in sorted(entry["tracks"][tn]):
-                    sess = sorted(entry["tracks"][tn][cn], key=lambda s: _laptime_to_sec(s["best_lap_str"]))
-                    cars.append({"car": cn, "sessions": sess,
-                                 "best": sess[0]["best_lap_str"] if sess else "-"})
-                tracks.append({"track": tn, "cars": cars})
+                sess = entry["tracks"][tn]
+                for s in sess:
+                    s["datekey"] = _datekey(s)
+                    s["lapsec"] = _laptime_to_sec(s["best_lap_str"])
+                sess = sorted(sess, key=lambda s: s["datekey"], reverse=True)  # default: piu' recenti
+                best = min((s["best_lap_str"] for s in sess), key=_laptime_to_sec)
+                tracks.append({"track": tn, "sessions": sess, "best": best})
         return {"driver": display, "tracks": tracks}
 
     columns, used = [], set()
     for name in _driver_columns():
         k = norm(name); used.add(k)
         columns.append(pack(name, by_driver.get(k)))
-    for k, e in by_driver.items():           # eventuali piloti extra non in lista
+    for k, e in by_driver.items():
         if k not in used:
             columns.append(pack(e["display"], e))
     return columns

@@ -6,36 +6,44 @@
   <button class="btn" type="submit">Importa</button>
 </form>
 
+{% if not aggregate %}<div class="empty">Nessuna sessione caricata.</div>{% endif %}
+
 <div class="home-cols">
   {% for d in aggregate %}
   <section class="dcol">
     <h2 class="dcol-name">{{ d.driver }}</h2>
-    {% if not d.tracks %}
-      <p class="dcol-empty">Nessuna sessione ancora.<br>I dati appariranno qui dopo il caricamento.</p>
-    {% endif %}
+    {% if not d.tracks %}<p class="dcol-empty">Nessuna sessione ancora.<br>I dati appariranno qui dopo il caricamento.</p>{% endif %}
     {% for t in d.tracks %}
-    <div class="agg-track">
-      <h3 class="agg-t">{{ t.track }}</h3>
-      {% for car in t.cars %}
-      <div class="agg-car">
-        <div class="agg-c"><span class="tag">{{ car.car }}</span><span class="agg-cbest">{{ car.best }}</span></div>
-        {% for s in car.sessions %}
-        <div class="cs-row" onclick="location.href='{{ url_for('session_view', sid=s.id) }}'">
-          <span class="cs-time best">{{ s.best_lap_str }}</span>
-          <span class="cs-meta">{{ s.n_laps }} giri · {{ s.v_max }} km/h</span>
-          <span class="cs-date">{{ s.date }} {{ s.time }}{% if s.air_temp is not none %} · {{ s.air_temp }}°/{{ s.road_temp }}°{% endif %}</span>
-          <span class="cs-del" onclick="event.stopPropagation()">
-            <form method="post" action="{{ url_for('session_delete', sid=s.id) }}" onsubmit="return confirm('Eliminare?')">
-              <button class="xbtn" title="elimina">✕</button>
-            </form>
-          </span>
-        </div>
-        {% endfor %}
+    <div class="trk">
+      <div class="trk-head"><span class="chev">▾</span><span class="trk-name">{{ t.track }}</span>
+        <span class="trk-count">{{ t.sessions|length }}</span><span class="trk-best">best {{ t.best }}</span></div>
+      <div class="trk-body">
+        <table class="ts-table">
+          <thead><tr>
+            <th data-sort="lap">Best</th><th>Auto</th><th>Giri</th>
+            <th data-sort="date" class="sorted">Data ▼</th><th></th>
+          </tr></thead>
+          <tbody>
+          {% for s in t.sessions %}
+          <tr data-datekey="{{ s.datekey }}" data-lapsec="{{ s.lapsec }}"
+              onclick="location.href='{{ url_for('session_view', sid=s.id) }}'">
+            <td class="num best">{{ s.best_lap_str }}</td>
+            <td><span class="tag">{{ s.car }}</span></td>
+            <td class="num">{{ s.n_laps }}</td>
+            <td class="num agg-date">{{ s.date }} {{ s.time }}{% if s.air_temp is not none %} · {{ s.air_temp }}°/{{ s.road_temp }}°{% endif %}</td>
+            <td class="agg-del" onclick="event.stopPropagation()">
+              <form method="post" action="{{ url_for('session_delete', sid=s.id) }}" onsubmit="return confirm('Eliminare?')">
+                <button class="xbtn" title="elimina">✕</button></form>
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
       </div>
-      {% endfor %}
     </div>
     {% endfor %}
   </section>
   {% endfor %}
 </div>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='home.js') }}"></script>{% endblock %}
