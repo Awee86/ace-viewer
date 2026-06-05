@@ -15,20 +15,17 @@
     </table>
   </div>
   <p id="laps-note" style="color:var(--dim);font-size:11px;margin-top:8px"></p>
-  <div id="compare-panel" class="compare-panel" hidden></div>
 </div>
 
 <div class="layout">
-  <div class="charts" id="charts"></div>
+  <div class="charts" id="charts">
+    <div class="charts-tools"><button class="chip" id="chan-open">+ Canali telemetria</button></div>
+  </div>
 
   <div class="sidecol">
     <div class="panel stats" id="stats">
       <h3>Statistiche giro</h3>
       <div id="stats-body" class="stats-body"></div>
-    </div>
-    <div class="panel">
-      <h3>Canali telemetria</h3>
-      <div id="chanpick" class="chanpick"></div>
     </div>
   </div>
 
@@ -38,10 +35,31 @@
       <div class="map-modes">
         <button class="chip mode-btn active" data-mode="speed">Velocità</button>
         <button class="chip mode-btn" data-mode="input">Staccata / Gas</button>
+        <span class="map-zoom">
+          <button class="chip" id="zoom-out">−</button>
+          <button class="chip" id="zoom-in">+</button>
+          <button class="chip" id="zoom-reset">reset</button>
+        </span>
       </div>
     </div>
     <canvas id="map" width="900" height="760"></canvas>
     <div class="map-legend" id="map-legend"></div>
+  </div>
+</div>
+
+<!-- pannello confronto (compatto, si chiude dopo la scelta) -->
+<div id="compare-modal" class="modal" hidden>
+  <div class="modal-card">
+    <div class="modal-head"><span>Aggiungi un giro da un'altra sessione</span><button id="compare-close" class="modal-x">✕</button></div>
+    <div id="compare-body" class="compare-body"></div>
+  </div>
+</div>
+
+<!-- modale canali telemetria -->
+<div id="chan-modal" class="modal" hidden>
+  <div class="modal-card">
+    <div class="modal-head"><span>Canali telemetria</span><button id="chan-close" class="modal-x">✕</button></div>
+    <div id="chanpick" class="chanpick"></div>
   </div>
 </div>
 

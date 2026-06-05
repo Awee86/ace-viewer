@@ -135,7 +135,7 @@ select,.chip{font-family:var(--mono);font-size:12px;background:var(--panel2);
 .map-legend{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px;text-align:center}
 #map{width:100%;height:auto;display:block;background:var(--bg);border-radius:8px}
 
-.valbox{position:fixed;top:90px;right:30px;z-index:50;background:#0e1116ee;border:1px solid var(--line2);
+.valbox{position:fixed;left:18px;bottom:18px;top:auto;right:auto;z-index:50;background:#0e1116ee;border:1px solid var(--line2);
   border-radius:8px;padding:8px 10px;min-width:240px;box-shadow:0 6px 24px #000a;cursor:move;backdrop-filter:blur(4px)}
 .vb-head{font-family:var(--mono);font-size:11px;color:var(--dim);margin-bottom:6px;letter-spacing:.05em}
 .vb-row{display:flex;align-items:center;gap:6px;font-size:11px;padding:2px 0}
@@ -325,3 +325,32 @@ select,.chip{font-family:var(--mono);font-size:12px;background:var(--panel2);
 .coachw-input button{background:var(--accent);color:#06251f;border:none;border-radius:9px;width:40px;font-size:17px;font-weight:700;cursor:pointer}
 .coachw-input button:disabled{opacity:.5}
 @media(max-width:480px){.coachw{right:10px;bottom:10px}.coachw-panel{width:94vw;height:70vh}}
+
+/* ---- v1.8 telemetria: modali, zoom mappa, toolbar canali ---- */
+.charts-tools{display:flex;justify-content:flex-end;margin-bottom:8px}
+.map-zoom{display:inline-flex;gap:4px;margin-left:10px;border-left:1px solid var(--line);padding-left:10px}
+.map-zoom .chip{min-width:30px;text-align:center}
+
+/* modale generica */
+.modal{position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.55);
+  display:flex;align-items:center;justify-content:center;padding:20px}
+.modal[hidden]{display:none}
+.modal-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  width:560px;max-width:94vw;max-height:80vh;overflow:auto;box-shadow:0 18px 50px rgba(0,0,0,.6)}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+.modal-head span{font-weight:600}
+.modal-x{background:none;border:none;color:var(--dim);font-size:16px;cursor:pointer}
+.modal-x:hover{color:var(--txt)}
+.modal .chanpick{padding:14px 16px;margin:0}
+
+/* confronto compatto nella modale */
+.compare-body{padding:12px 16px}
+.cmp-sess{padding:8px 0;border-bottom:1px solid var(--line)}
+.cmp-sess:last-child{border-bottom:none}
+.cmp-h{font-size:12px;color:var(--txt);margin-bottom:6px}
+.cmp-h b{color:var(--accent2)}
+.cmp-d{color:var(--dim);font-family:var(--mono);font-size:11px;margin-left:6px}
+.cmp-laps{display:flex;flex-wrap:wrap;gap:6px}
+.cmp-lap{cursor:pointer}
+.cmp-lap:hover{border-color:var(--accent2);color:var(--accent2)}
