@@ -25,34 +25,54 @@ def _rv(b, i):
 
 def _decode(b, depth=0):
     i = 0; out = []
-    while i < len(b):
+    n = len(b)
+    while i < n:
         try:
             tag, i = _rv(b, i)
-        except IndexError:
-            break
-        field, wt = tag >> 3, tag & 7
-        if wt == 0:
-            v, i = _rv(b, i); out.append((field, "int", v))
-        elif wt == 5:
-            if i + 4 > len(b):
-                break
-            out.append((field, "f32", round(struct.unpack("<f", b[i:i+4])[0], 4))); i += 4
-        elif wt == 1:
-            out.append((field, "f64", round(struct.unpack("<d", b[i:i+8])[0], 4))); i += 8
-        elif wt == 2:
-            ln, i = _rv(b, i); sub = b[i:i+ln]; i += ln
-            inner = _decode(sub, depth+1) if depth < 5 else None
-            # se decodifica in modo "pulito" e' un sotto-messaggio, altrimenti bytes/stringa
-            if inner and _looks_clean(sub, inner):
-                out.append((field, "msg", inner))
+            field, wt = tag >> 3, tag & 7
+            if wt == 0:
+                v, i = _rv(b, i); out.append((field, "int", v))
+            elif wt == 5:
+                if i + 4 > n:
+                    break
+                out.append((field, "f32", round(struct.unpack("<f", b[i:i+4])[0], 4))); i += 4
+            elif wt == 1:
+                if i + 8 > n:
+                    break
+                out.append((field, "f64", round(struct.unpack("<d", b[i:i+8])[0], 4))); i += 8
+            elif wt == 2:
+                ln, i = _rv(b, i)
+                if ln < 0 or i + ln > n:
+                    break
+                sub = b[i:i+ln]; i += ln
+                inner = _decode(sub, depth+1) if depth < 5 else None
+                if inner and _looks_clean(sub, inner):
+                    out.append((field, "msg", inner))
+                else:
+                    try:
+                        out.append((field, "str", sub.decode("utf-8")))
+                    except UnicodeDecodeError:
+                        out.append((field, "bytes", sub.hex()))
             else:
-                try:
-                    out.append((field, "str", sub.decode("utf-8")))
-                except UnicodeDecodeError:
-                    out.append((field, "bytes", sub.hex()))
-        else:
+                break
+        except Exception:
             break
     return out
+
+
+def _scan_car(b):
+    """Recupero best-effort del nome auto da una stringa stampabile contenente 'ks_'."""
+    cur = bytearray()
+    best = ""
+    for c in b + b"\x00":
+        if 32 <= c < 127:
+            cur.append(c)
+        else:
+            s = cur.decode("ascii", "ignore")
+            if ("ks_" in s or "preset" in s) and len(s) > len(best):
+                best = s
+            cur = bytearray()
+    return best
 
 
 def _looks_clean(raw, inner):
@@ -67,41 +87,46 @@ def parse(path_or_bytes):
     tree = _decode(b)
     car = ""
     params = []   # lista di righe {key, label, corner, value}
+    try:
+        # raggruppa i campi top-level ripetuti -> angoli
+        groups = {}
+        top_scalars = []
+        for field, ty, val in tree:
+            if ty == "str" and not car:
+                car = val
+            if ty == "msg":
+                groups.setdefault(field, []).append(val)
+            elif ty in ("f32", "f64", "int"):
+                top_scalars.append((field, val))
 
-    # raggruppa i campi top-level ripetuti -> angoli
-    groups = {}
-    top_scalars = []
-    for field, ty, val in tree:
-        if ty == "str" and not car:
-            car = val
-        if ty == "msg":
-            groups.setdefault(field, []).append(val)
-        elif ty in ("f32", "f64", "int"):
-            top_scalars.append((field, val))
+        name_for = {2: "molla", 3: "ammo", 4: "alza"}  # gruppi ripetuti noti (per angolo)
 
-    name_for = {2: "molla", 3: "ammo", 4: "alza"}  # gruppi ripetuti noti (per angolo)
-
-    for field, reps in groups.items():
-        per_corner = len(reps) == 4
-        gname = name_for.get(field, f"g{field}")
-        sublabels = SUB_LABELS.get(gname, {})
-        for idx, rep in enumerate(reps):
-            corner = CORNERS[idx] if per_corner else (str(idx+1) if len(reps) > 1 else "")
-            for sf, sty, sval in rep:
-                if sty in ("f32", "f64", "int"):
-                    params.append({"key": f"{field}.{sf}.{idx}",
-                                   "group": gname, "corner": corner,
-                                   "label": sublabels.get(sf, f"campo {sf}"),
-                                   "value": sval})
-                elif sty == "msg":
-                    for ssf, _t, ssv in rep_scalars(sval):
-                        params.append({"key": f"{field}.{sf}.{ssf}.{idx}",
+        for field, reps in groups.items():
+            per_corner = len(reps) == 4
+            gname = name_for.get(field, f"g{field}")
+            sublabels = SUB_LABELS.get(gname, {})
+            for idx, rep in enumerate(reps):
+                corner = CORNERS[idx] if per_corner else (str(idx+1) if len(reps) > 1 else "")
+                for sf, sty, sval in rep:
+                    if sty in ("f32", "f64", "int"):
+                        params.append({"key": f"{field}.{sf}.{idx}",
                                        "group": gname, "corner": corner,
-                                       "label": f"{sublabels.get(sf,'campo '+str(sf))} · {ssf}",
-                                       "value": ssv})
-    for field, val in top_scalars:
-        params.append({"key": f"t{field}", "group": "generale", "corner": "",
-                       "label": f"campo {field}", "value": val})
+                                       "label": sublabels.get(sf, f"campo {sf}"),
+                                       "value": sval})
+                    elif sty == "msg":
+                        for ssf, _t, ssv in rep_scalars(sval):
+                            params.append({"key": f"{field}.{sf}.{ssf}.{idx}",
+                                           "group": gname, "corner": corner,
+                                           "label": f"{sublabels.get(sf,'campo '+str(sf))} · {ssf}",
+                                           "value": ssv})
+        for field, val in top_scalars:
+            params.append({"key": f"t{field}", "group": "generale", "corner": "",
+                           "label": f"campo {field}", "value": val})
+    except Exception:
+        params = params or []
+
+    if not car:                       # recupero best-effort se la struttura non si e' decodificata
+        car = _scan_car(b)
 
     car_clean = car
     preset = ""

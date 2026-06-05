@@ -325,15 +325,17 @@ def api_ingest_setup():
     ex = storage.find_setup_by_sha(sha)
     if ex:
         return jsonify(id=ex, duplicate=True, status="ok")
+    if len(raw) < 16:
+        return jsonify(error="file vuoto o troppo piccolo"), 400
     try:
         parsed = carsetup.parse(raw)
-    except Exception as e:
-        return jsonify(error=f"parse: {e}"), 400
+    except Exception:
+        parsed = {"car": "", "preset": "", "params": []}
     name = os.path.splitext(os.path.basename(f.filename))[0]
     car = request.form.get("car") or None
     track = request.form.get("track") or None
     sid = storage.save_setup(raw, parsed, name, uploader, sha, car=car, track=track)
-    return jsonify(id=sid, duplicate=False, status="ok")
+    return jsonify(id=sid, duplicate=False, status="ok", n_params=len(parsed.get("params", [])))
 
 
 @app.route("/setups")
