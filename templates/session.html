@@ -2,33 +2,27 @@
 {% block title %}{{ s.track }} · ACE Viewer{% endblock %}
 {% block crumb %}{{ s.car }} · {{ s.track }}{% endblock %}
 {% block content %}
+<div class="panel statbar"><div id="stats-body" class="statbar-body"></div></div>
+
 <div class="panel laps-bar">
   <div class="laps-head">
     <h3>Giri <span id="track-name" style="color:var(--dim);text-transform:none;letter-spacing:0"></span></h3>
     <span id="weather" class="weather"></span>
-    <button class="btn ghost" id="add-compare">+ confronta altri piloti</button>
+    <button class="btn-primary sm" id="add-compare">+ confronta altri piloti</button>
   </div>
   <div class="laps-scroll">
     <table class="laps" id="laps">
-      <thead><tr><th></th><th>Pilota</th><th>Giro</th><th>Tempo</th><th>Δ best</th><th>V max</th></tr></thead>
+      <thead><tr><th></th><th>Pilota</th><th>Giro</th><th>Tempo</th><th>Δ best</th><th>V max</th><th>Meteo</th></tr></thead>
       <tbody id="laps-body"></tbody>
     </table>
   </div>
   <p id="laps-note" style="color:var(--dim);font-size:11px;margin-top:8px"></p>
 </div>
 
-<div class="layout">
+<div class="layout2">
   <div class="charts" id="charts">
     <div class="charts-tools"><button class="chip" id="chan-open">+ Canali telemetria</button></div>
   </div>
-
-  <div class="sidecol">
-    <div class="panel stats" id="stats">
-      <h3>Statistiche giro</h3>
-      <div id="stats-body" class="stats-body"></div>
-    </div>
-  </div>
-
   <div class="panel mapcol" id="map-wrap">
     <div class="map-head">
       <h3>Tracciato</h3>
@@ -42,27 +36,23 @@
         </span>
       </div>
     </div>
-    <canvas id="map" width="900" height="760"></canvas>
+    <canvas id="map" width="900" height="820"></canvas>
     <div class="map-legend" id="map-legend"></div>
   </div>
 </div>
 
-<!-- pannello confronto (compatto, si chiude dopo la scelta) -->
 <div id="compare-modal" class="modal" hidden>
   <div class="modal-card">
-    <div class="modal-head"><span>Aggiungi un giro da un'altra sessione</span><button id="compare-close" class="modal-x">✕</button></div>
+    <div class="modal-head"><span>Aggiungi un giro (stessa pista e categoria)</span><button id="compare-close" class="modal-x">✕</button></div>
     <div id="compare-body" class="compare-body"></div>
   </div>
 </div>
-
-<!-- modale canali telemetria -->
 <div id="chan-modal" class="modal" hidden>
   <div class="modal-card">
     <div class="modal-head"><span>Canali telemetria</span><button id="chan-close" class="modal-x">✕</button></div>
     <div id="chanpick" class="chanpick"></div>
   </div>
 </div>
-
 <div id="valbox" class="valbox" hidden></div>
 
 <script>const SID="{{ s.id }}";</script>

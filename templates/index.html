@@ -1,45 +1,38 @@
 {% extends "base.html" %}
 {% block content %}
-<form class="upload" method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data">
-  <div><h2>Carica sessione</h2><p>File <code>.ld</code> + <code>.ldx</code>.</p></div>
-  <input type="file" name="files" accept=".ld,.ldx" multiple required>
-  <button class="btn" type="submit">Importa</button>
-</form>
-
-{% if not aggregate %}<div class="empty">Nessuna sessione caricata.</div>{% endif %}
+{% if not aggregate %}<div class="empty">Nessuna sessione caricata. Vai su <a href="{{ url_for('upload_page') }}">Carica</a> o usa l'agente.</div>{% endif %}
 
 <div class="home-cols">
   {% for d in aggregate %}
   <section class="dcol">
     <h2 class="dcol-name">{{ d.driver }}</h2>
-    {% if not d.tracks %}<p class="dcol-empty">Nessuna sessione ancora.<br>I dati appariranno qui dopo il caricamento.</p>{% endif %}
+    {% if not d.tracks %}<p class="dcol-empty">Nessuna sessione ancora.</p>{% endif %}
     {% for t in d.tracks %}
-    <div class="trk">
+    <div class="trk collapsed">
       <div class="trk-head"><span class="chev">▾</span><span class="trk-name">{{ t.track }}</span><span class="trk-count">{{ t.n }}</span></div>
       <div class="trk-body">
         {% for car in t.cars %}
-        <div class="trk-car">
-          <div class="trk-car-head"><span class="tag">{{ car.car }}</span><span class="trk-best">best {{ car.best }}</span></div>
-          <table class="ts-table">
-            <thead><tr>
-              <th data-sort="lap">Best</th><th>Giri</th>
-              <th data-sort="date" class="sorted">Data ▼</th><th></th>
-            </tr></thead>
-            <tbody>
-            {% for s in car.sessions %}
-            <tr data-datekey="{{ s.datekey }}" data-lapsec="{{ s.lapsec }}"
-                onclick="location.href='{{ url_for('session_view', sid=s.id) }}'">
-              <td class="num best">{{ s.best_lap_str }}</td>
-              <td class="num">{{ s.n_laps }}</td>
-              <td class="num agg-date">{{ s.date }} {{ s.time }}{% if s.air_temp is not none %} · {{ s.air_temp }}°/{{ s.road_temp }}°{% endif %}</td>
-              <td class="agg-del" onclick="event.stopPropagation()">
-                <form method="post" action="{{ url_for('session_delete', sid=s.id) }}" onsubmit="return confirm('Eliminare?')">
-                  <button class="xbtn" title="elimina">✕</button></form>
-              </td>
-            </tr>
-            {% endfor %}
-            </tbody>
-          </table>
+        <div class="car-blk collapsed">
+          <div class="car-head"><span class="chev">▾</span><span class="tag">{{ car.car }}</span><span class="trk-best">best {{ car.best }}</span></div>
+          <div class="car-body">
+            <table class="ts-table">
+              <thead><tr><th data-sort="lap">Best</th><th>Giri</th><th data-sort="date" class="sorted">Data ▼</th><th></th></tr></thead>
+              <tbody>
+              {% for s in car.sessions %}
+              <tr data-datekey="{{ s.datekey }}" data-lapsec="{{ s.lapsec }}"
+                  onclick="location.href='{{ url_for('session_view', sid=s.id) }}'">
+                <td class="num best">{{ s.best_lap_str }}</td>
+                <td class="num">{{ s.n_laps }}</td>
+                <td class="num agg-date">{{ s.date }} {{ s.time }}{% if s.air_temp is not none %} · {{ s.air_temp }}°/{{ s.road_temp }}°{% endif %}</td>
+                <td class="agg-del" onclick="event.stopPropagation()">
+                  <form method="post" action="{{ url_for('session_delete', sid=s.id) }}" onsubmit="return confirm('Eliminare?')">
+                    <button class="xbtn" title="elimina">✕</button></form>
+                </td>
+              </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
         {% endfor %}
       </div>

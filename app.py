@@ -127,6 +127,12 @@ def index():
                            n_sessions=len(sessions))
 
 
+@app.route("/carica")
+@require_auth
+def upload_page():
+    return render_template("upload.html")
+
+
 @app.route("/upload", methods=["POST"])
 @require_auth
 def upload():
@@ -220,8 +226,20 @@ def api_track(track):
                  "v_max": l.get("v_max")} for l in p["laps"] if l["complete"]]
         if laps:
             out.append({"id": s["id"], "driver": s["uploader"], "car": s["car"],
-                        "date": s["date"], "time": s["time"], "laps": laps})
+                        "date": s["date"], "time": s["time"], "laps": laps,
+                        "air_temp": s.get("air_temp"), "road_temp": s.get("road_temp")})
     return jsonify({"track": track, "sessions": out})
+
+
+@app.route("/api/cornermap")
+@require_auth
+def api_cornermap():
+    track = request.args.get("track", "")
+    try:
+        cm = coach.get_or_build_corners(track) if track else []
+    except Exception:
+        cm = []
+    return jsonify({"track": track, "corners": cm})
 
 
 @app.route("/api/lap/<sid>/<int:lapn>")

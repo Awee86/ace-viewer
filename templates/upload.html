@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Carica · ACE Viewer{% endblock %}
+{% block crumb %}Carica sessione{% endblock %}
+{% block content %}
+<div class="upload-page">
+  <h2>Carica una sessione</h2>
+  <p class="dcol-empty">Seleziona i file <code>.ld</code> e <code>.ldx</code> esportati da Assetto Corsa EVO
+  (cartella <code>Saved Games\ACE\MoTec</code>). Di norma li carica già l'agente in automatico;
+  questo serve per un import manuale.</p>
+  <form class="upload-form" method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data">
+    <input type="file" name="files" accept=".ld,.ldx" multiple required>
+    <button class="btn-primary" type="submit">Importa sessione</button>
+  </form>
+</div>
+{% endblock %}

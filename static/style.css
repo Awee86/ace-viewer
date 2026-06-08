@@ -354,3 +354,35 @@ select,.chip{font-family:var(--mono);font-size:12px;background:var(--panel2);
 .cmp-laps{display:flex;flex-wrap:wrap;gap:6px}
 .cmp-lap{cursor:pointer}
 .cmp-lap:hover{border-color:var(--accent2);color:var(--accent2)}
+
+/* ---- v1.9 pulsanti azione, carica, statbar, layout2, livello auto ---- */
+.btn-primary{background:#e62020;color:#fff;border:none;border-radius:10px;padding:14px 26px;
+  font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.02em;box-shadow:0 4px 14px rgba(230,32,32,.3)}
+.btn-primary:hover{background:#ff3a3a}
+.btn-primary.sm{padding:9px 16px;font-size:12px;border-radius:8px;box-shadow:none}
+
+.upload-page{max-width:640px}
+.upload-form{display:flex;flex-direction:column;gap:18px;align-items:flex-start;margin-top:18px;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px}
+.upload-form input[type=file]{color:var(--muted);font-size:13px}
+
+.statbar{padding:10px 14px;margin-bottom:12px}
+.statbar-body{display:flex;flex-wrap:wrap;gap:10px 26px}
+.si{display:flex;flex-direction:column;gap:1px}
+.si .sk{font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim)}
+.si .sv{font-family:var(--mono);font-size:15px;color:var(--txt)}
+
+.layout2{display:grid;grid-template-columns:1.15fr 1fr;gap:16px;align-items:start}
+@media(max-width:1100px){.layout2{grid-template-columns:1fr}}
+.mapcol canvas{width:100%;height:auto;background:#0a0d12;border-radius:10px;cursor:grab}
+.mapcol canvas:active{cursor:grabbing}
+.charts .chart-box{margin-bottom:10px}
+
+.car-blk{border:1px solid var(--line);border-radius:8px;margin:5px 0;overflow:hidden}
+.car-head{display:flex;align-items:center;gap:8px;padding:6px 9px;cursor:pointer;background:var(--bg2);user-select:none}
+.car-head:hover{background:var(--panel2)}
+.car-head .chev{font-size:10px;color:var(--muted);display:inline-block;transition:transform .15s}
+.car-blk.collapsed .car-body{display:none}
+.car-blk.collapsed .chev{transform:rotate(-90deg)}
+.car-head .trk-best{margin-left:auto}
+.car-body{padding:2px 6px 6px}
