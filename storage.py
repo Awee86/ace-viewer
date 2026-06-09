@@ -175,18 +175,15 @@ def _to_jsonable(payload):
             "channels": {k: np.round(v, 2).tolist() for k, v in d["channels"].items()},
         }
 
+    # NB: NON salviamo gli array dell'intera sessione (t/x/y/channels a 50Hz):
+    # i client usano solo i dati per-giro (lap_data). Risparmio enorme di spazio.
     out = {
         "meta": payload["meta"],
-        "t": arr(payload["t"]),
-        "x": np.round(payload["x"], 1).tolist(),
-        "y": np.round(payload["y"], 1).tolist(),
         "laps": payload["laps"],
         "lap_data": {k: lapd(v) for k, v in payload["lap_data"].items()},
         "best_lap": payload["best_lap"],
         "best_lap_str": payload["best_lap_str"],
         "best_lap_vmax": payload.get("best_lap_vmax"),
-        "channels": {n: {"unit": d["unit"], "values": arr(d["values"])}
-                     for n, d in payload["channels"].items()},
     }
     return out
 
@@ -262,3 +259,48 @@ def delete_session(sid):
         os.remove(p)
     with _conn() as c:
         c.execute("DELETE FROM sessions WHERE id=?", (sid,))
+
+
+def _dir_size(path):
+    tot = 0
+    for root, _d, files in os.walk(path):
+        for f in files:
+            try:
+                tot += os.path.getsize(os.path.join(root, f))
+            except OSError:
+                pass
+    return tot
+
+
+def disk_usage():
+    return {"uploads": _dir_size(UPLOAD_DIR), "processed": _dir_size(PROC_DIR),
+            "setups": _dir_size(SETUP_DIR), "total": _dir_size(DATA_DIR)}
+
+
+def compact_processed(drop_raw=False):
+    """Riscrive i file elaborati rimuovendo gli array dell'intera sessione non usati.
+    Se drop_raw, elimina anche i file .ld/.ldx originali. Ritorna byte liberati."""
+    DEAD = ("t", "x", "y", "channels")
+    before = _dir_size(DATA_DIR)
+    for fn in os.listdir(PROC_DIR):
+        if not fn.endswith(".json.gz"):
+            continue
+        path = os.path.join(PROC_DIR, fn)
+        try:
+            with gzip.open(path, "rt", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            continue
+        if any(k in data for k in DEAD):
+            for k in DEAD:
+                data.pop(k, None)
+            tmp = path + ".tmp"
+            with gzip.open(tmp, "wt", encoding="utf-8") as f:
+                json.dump(data, f)
+            os.replace(tmp, path)
+    if drop_raw:
+        import shutil
+        for sid in os.listdir(UPLOAD_DIR):
+            shutil.rmtree(os.path.join(UPLOAD_DIR, sid), ignore_errors=True)
+    after = _dir_size(DATA_DIR)
+    return before - after

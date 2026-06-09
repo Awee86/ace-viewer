@@ -269,6 +269,21 @@ def healthz():
     return "ok"
 
 
+@app.route("/admin")
+@require_auth
+def admin_view():
+    return render_template("admin.html", usage=storage.disk_usage(),
+                           freed=request.args.get("freed"))
+
+
+@app.route("/admin/compact", methods=["POST"])
+@require_auth
+def admin_compact():
+    drop_raw = request.form.get("drop_raw") == "1"
+    freed = storage.compact_processed(drop_raw=drop_raw)
+    return redirect(url_for("admin_view", freed=freed))
+
+
 # ---------------------------------------------------------------- coach AI
 @app.route("/coach")
 @require_auth

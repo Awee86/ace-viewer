@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Spazio · ACE Viewer{% endblock %}
+{% block crumb %}Spazio su disco{% endblock %}
+{% macro mb(b) %}{{ '%.1f'|format(b/1048576) }} MB{% endmacro %}
+{% block content %}
+<div class="upload-page">
+  <h2>Spazio su disco</h2>
+  {% if freed is not none %}<div class="panel" style="border-color:var(--accent2);margin-bottom:14px">Liberati <b>{{ '%.1f'|format((freed|float)/1048576) }} MB</b>.</div>{% endif %}
+  <div class="panel" style="margin-bottom:16px">
+    <div class="srow"><span class="sk">File elaborati</span><span class="sv">{{ mb(usage.processed) }}</span></div>
+    <div class="srow"><span class="sk">File originali (.ld/.ldx)</span><span class="sv">{{ mb(usage.uploads) }}</span></div>
+    <div class="srow"><span class="sk">Setup</span><span class="sv">{{ mb(usage.setups) }}</span></div>
+    <div class="srow" style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><span class="sk">Totale</span><span class="sv">{{ mb(usage.total) }}</span></div>
+  </div>
+  <p class="dcol-empty">La compattazione rimuove dai file elaborati i dati dell'intera sessione che l'app non usa (tiene tutto ciò che serve a grafici, mappa e confronti). Recupera spazio senza reimportare nulla.</p>
+  <form method="post" action="{{ url_for('admin_compact') }}" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+    <button class="btn-primary sm" name="drop_raw" value="0">Compatta</button>
+    <button class="btn-primary sm" name="drop_raw" value="1" style="background:#7a1414" onclick="return confirm('Elimina anche i file originali .ld/.ldx? Non potrai ri-elaborare le vecchie sessioni se cambia il formato (ma i piloti li hanno ancora sul PC).')">Compatta + elimina originali</button>
+  </form>
+</div>
+{% endblock %}
