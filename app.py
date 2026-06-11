@@ -197,6 +197,7 @@ def api_session(sid):
         "laps": p["laps"],
         "lap_data": lap_data,
         "best_lap": p["best_lap"], "best_lap_str": p["best_lap_str"],
+        "optimal": analysis.optimal_lap(p),
     })
 
 

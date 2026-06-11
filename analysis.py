@@ -53,6 +53,40 @@ def _fmt_lap(sec):
     return "%d:%06.3f" % (m, sec - 60 * m)
 
 
+def optimal_lap(payload, n=3):
+    """Giro ottimale: somma dei migliori n settori (per distanza) tra i giri completi.
+    Ritorna None se non ci sono giri completi sufficienti."""
+    laps = [l for l in payload.get("laps", []) if l.get("complete")]
+    ld = payload.get("lap_data", {})
+    best = [None] * n          # (tempo_settore, n_giro) per settore
+    per_lap = {}
+    for l in laps:
+        kk = str(l["n"])
+        if kk not in ld:
+            continue
+        dist = np.asarray(ld[kk]["dist"], float)
+        time = np.asarray(ld[kk]["time"], float)
+        if len(dist) < n + 1 or dist[-1] <= 0:
+            continue
+        L = dist[-1]
+        bounds = [0.0] + [L * i / n for i in range(1, n)] + [L]
+        tb = np.interp(bounds, dist, time)
+        secs = [float(tb[i + 1] - tb[i]) for i in range(n)]
+        per_lap[l["n"]] = [round(s, 3) for s in secs]
+        for i, s in enumerate(secs):
+            if best[i] is None or s < best[i][0]:
+                best[i] = (s, l["n"])
+    if any(b is None for b in best):
+        return None
+    opt = sum(b[0] for b in best)
+    return {
+        "time": round(opt, 3), "time_str": _fmt_lap(opt),
+        "sectors": [{"i": i + 1, "time": round(b[0], 3),
+                     "time_str": _fmt_lap(b[0]), "lap": b[1]} for i, b in enumerate(best)],
+        "per_lap": per_lap,
+    }
+
+
 def _cumtrapz(y, t):
     dt = np.diff(t)
     seg = (y[1:] + y[:-1]) / 2 * dt

@@ -386,3 +386,14 @@ select,.chip{font-family:var(--mono);font-size:12px;background:var(--panel2);
 .car-blk.collapsed .chev{transform:rotate(-90deg)}
 .car-head .trk-best{margin-left:auto}
 .car-body{padding:2px 6px 6px}
+
+/* ---- giro ottimale ---- */
+.optimal-line{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px;
+  padding-top:10px;border-top:1px solid var(--line);font-size:13px}
+.opt-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim)}
+.opt-time{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--accent2)}
+.opt-gap{color:var(--accent2);font-family:var(--mono);font-size:12px}
+.opt-secs{display:flex;gap:14px;flex-wrap:wrap;margin-left:6px}
+.opt-sec{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.opt-sec b{color:var(--txt)}
+.opt-from{color:var(--dim);font-size:11px}

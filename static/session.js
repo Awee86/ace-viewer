@@ -67,12 +67,22 @@ function renderLapTable(){const body=document.getElementById("laps-body");body.i
     body.appendChild(tr);});}
 
 function renderStats(){const ref=refLap();const el=document.getElementById("stats-body");
-  if(!ref){el.innerHTML='<span class="dcol-empty">Nessun giro selezionato.</span>';return;}
+  if(!ref){el.innerHTML='<span class="dcol-empty">Nessun giro selezionato.</span>';renderOptimal();return;}
   const s=ref.stats;
   el.innerHTML=[["Pilota",ref.driver],["Giro","#"+ref.lapn+(selected.length>1?" (rif.)":"")],
     ["Tempo",ref.time_str],["V max",(s.v_max??'-')+" km/h"],["V min",(s.v_min??'-')+" km/h"],
     ["V media",(s.v_avg??'-')+" km/h"],["RPM max",s.rpm_max??'-'],["Pieno gas",(s.full_throttle_pct??'-')+" %"]
-  ].map(([k,v])=>`<div class="si"><span class="sk">${k}</span><span class="sv">${v}</span></div>`).join("");}
+  ].map(([k,v])=>`<div class="si"><span class="sk">${k}</span><span class="sv">${v}</span></div>`).join("");
+  renderOptimal();}
+
+function renderOptimal(){const el=document.getElementById("optimal-line");if(!el)return;
+  const o=SESSION&&SESSION.optimal;
+  if(!o){el.innerHTML="";return;}
+  const best=SESSION.best_lap_str;
+  const gap=(SESSION.laps.find(l=>l.n===SESSION.best_lap)||{}).time;
+  const delta=(gap!=null)?` <span class="opt-gap">(−${(gap-o.time).toFixed(3)} sul best ${best})</span>`:"";
+  const secs=o.sectors.map(s=>`<span class="opt-sec">S${s.i} <b>${s.time_str.replace(/^0:/,'')}</b> <span class="opt-from">giro ${s.lap}</span></span>`).join("");
+  el.innerHTML=`<span class="opt-lbl">Giro ottimale</span><span class="opt-time">${o.time_str}</span>${delta}<span class="opt-secs">${secs}</span>`;}
 
 // ---------------- mappa ----------------
 const cv=document.getElementById("map"),ctx=cv.getContext("2d");
