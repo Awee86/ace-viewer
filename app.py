@@ -2,6 +2,7 @@
 Flask + SQLite, deploy su Railway. Auth HTTP Basic per piccoli gruppi."""
 import os
 import json
+import re
 import tempfile
 from functools import wraps
 
@@ -118,13 +119,105 @@ def _build_aggregate(sessions):
     return columns
 
 
+def _category(car):
+    m = re.search(r"GT\s?3|GT\s?4|GT\s?2|GTE|GT1|LMP\s?[123]|HYPERCAR|TCR|CUP|TROPHY",
+                  car or "", re.I)
+    return m.group(0).upper().replace(" ", "") if m else ""
+
+
+def _pilot_summary(sessions):
+    norm = lambda x: (x or "").strip().lower()
+    by = {}
+    for s in sessions:
+        by.setdefault(norm(s["uploader"]), []).append(s)
+    res = {}
+    for k, ss in by.items():
+        last = sorted(ss, key=_datekey, reverse=True)[0]
+        res[k] = {"n_sessions": len(ss),
+                  "valid_laps": sum(int(s["n_laps"] or 0) for s in ss),
+                  "last_track": last["track"], "last_car": last["car"],
+                  "last_date": last["date"], "last_time": last["time"]}
+    return res
+
+
+def _team_overview(sessions):
+    from collections import Counter
+    norm = lambda x: (x or "").strip().lower()
+    by = {}
+    for s in sessions:
+        by.setdefault(norm(s["uploader"]), []).append(s)
+    pilots = []
+    for k, ss in by.items():
+        km = sum(float(s["distance_km"] or 0) * int(s["n_laps"] or 0) for s in ss)
+        secs = sum(float(s["duration"] or 0) for s in ss)
+        ft = Counter(s["track"] for s in ss).most_common(1)
+        fc = Counter(s["car"] for s in ss).most_common(1)
+        pilots.append({"driver": ss[0]["uploader"], "n_sessions": len(ss),
+                       "valid_laps": sum(int(s["n_laps"] or 0) for s in ss),
+                       "km": round(km, 1), "hours": round(secs / 3600, 1),
+                       "n_tracks": len(set(s["track"] for s in ss)),
+                       "n_cars": len(set(s["car"] for s in ss)),
+                       "fav_track": ft[0][0] if ft else "—",
+                       "fav_car": fc[0][0] if fc else "—"})
+    pilots.sort(key=lambda p: -p["valid_laps"])
+
+    bytrack = {}
+    for s in sessions:
+        sec = _laptime_to_sec(s["best_lap_str"])
+        if sec >= 1e9:
+            continue
+        cur = bytrack.get(s["track"])
+        if cur is None or sec < cur["sec"]:
+            bytrack[s["track"]] = {"track": s["track"], "sec": sec,
+                                   "time_str": s["best_lap_str"],
+                                   "driver": s["uploader"], "car": s["car"]}
+    records = sorted(bytrack.values(), key=lambda r: r["track"])
+    rc = Counter(r["driver"] for r in records)
+    champion = rc.most_common(1)[0][0] if rc else None
+
+    grp = {}
+    for s in sessions:
+        sec = _laptime_to_sec(s["best_lap_str"])
+        if sec >= 1e9:
+            continue
+        key = (s["track"], _category(s["car"]))
+        nd = norm(s["uploader"])
+        d = grp.setdefault(key, {})
+        if nd not in d or sec < d[nd]["sec"]:
+            d[nd] = {"driver": s["uploader"], "car": s["car"],
+                     "sec": sec, "time_str": s["best_lap_str"]}
+    h2h = []
+    for (track, cat), d in grp.items():
+        if len(d) < 2:
+            continue
+        rows = sorted(d.values(), key=lambda r: r["sec"])
+        best = rows[0]["sec"]
+        for r in rows:
+            r["gap"] = "best" if r["sec"] == best else "+%.3f" % (r["sec"] - best)
+        h2h.append({"track": track, "category": cat or "—", "rows": rows})
+    h2h.sort(key=lambda x: (x["track"], x["category"]))
+    return {"pilots": pilots, "records": records,
+            "record_counts": dict(rc), "champion": champion, "head2head": h2h}
+
+
 @app.route("/")
 @require_auth
 def index():
     sessions = storage.list_sessions()
-    return render_template("index.html",
-                           aggregate=_build_aggregate(sessions),
+    aggregate = _build_aggregate(sessions)
+    summ = _pilot_summary(sessions)
+    norm = lambda x: (x or "").strip().lower()
+    strip = [dict(driver=col["driver"], **summ.get(norm(col["driver"]),
+             {"n_sessions": 0, "valid_laps": 0, "last_track": None, "last_car": None,
+              "last_date": None, "last_time": None})) for col in aggregate]
+    return render_template("index.html", aggregate=aggregate, strip=strip,
                            n_sessions=len(sessions))
+
+
+@app.route("/statistiche")
+@require_auth
+def stats_view():
+    return render_template("stats.html", ov=_team_overview(storage.list_sessions()))
 
 
 @app.route("/carica")

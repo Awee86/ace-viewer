@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Statistiche · ACE Viewer{% endblock %}
+{% block crumb %}Statistiche del team{% endblock %}
+{% block content %}
+
+<h3 class="sec-h">Piloti</h3>
+<div class="pilot-cards">
+  {% for p in ov.pilots %}
+  <div class="panel pcard">
+    <div class="pcard-name">{{ p.driver }}{% if ov.champion and p.driver == ov.champion %} <span title="più record di pista">👑</span>{% endif %}</div>
+    <div class="pcard-grid">
+      <div><b>{{ p.valid_laps }}</b><span>giri validi</span></div>
+      <div><b>{{ p.n_sessions }}</b><span>sessioni</span></div>
+      <div><b>{{ '%.0f'|format(p.km) }}</b><span>km</span></div>
+      <div><b>{{ p.hours }}</b><span>ore in pista</span></div>
+      <div><b>{{ p.n_tracks }}</b><span>piste</span></div>
+      <div><b>{{ p.n_cars }}</b><span>auto</span></div>
+    </div>
+    <div class="pcard-fav">Preferite: <b>{{ p.fav_track }}</b> · {{ p.fav_car }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<h3 class="sec-h">Bacheca record <span class="sec-sub">miglior giro assoluto per pista</span></h3>
+<div class="panel">
+  <table class="rec-table">
+    <thead><tr><th>Pista</th><th>Tempo</th><th>Pilota</th><th>Auto</th></tr></thead>
+    <tbody>
+    {% for r in ov.records %}
+      <tr><td>{{ r.track }}</td><td class="num best">{{ r.time_str }}</td>
+          <td>{{ r.driver }}{% if ov.record_counts.get(r.driver) %} <span class="rec-badge">{{ ov.record_counts[r.driver] }}🏆</span>{% endif %}</td>
+          <td class="dim">{{ r.car }}</td></tr>
+    {% else %}
+      <tr><td colspan="4" class="dcol-empty">Ancora nessun record.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h3 class="sec-h">Testa a testa <span class="sec-sub">stessa pista e categoria, distacco dal migliore</span></h3>
+{% if ov.head2head %}
+<div class="h2h-grid">
+  {% for g in ov.head2head %}
+  <div class="panel h2h">
+    <div class="h2h-h">{{ g.track }} <span class="tag">{{ g.category }}</span></div>
+    {% for r in g.rows %}
+    <div class="h2h-row {% if loop.first %}lead{% endif %}">
+      <span class="h2h-pos">{{ loop.index }}</span>
+      <span class="h2h-drv">{{ r.driver }}</span>
+      <span class="h2h-time">{{ r.time_str }}</span>
+      <span class="h2h-gap">{{ r.gap }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel dcol-empty">Servono almeno due piloti sulla stessa pista e categoria.</div>
+{% endif %}
+{% endblock %}

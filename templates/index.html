@@ -2,6 +2,21 @@
 {% block content %}
 {% if not aggregate %}<div class="empty">Nessuna sessione caricata. Vai su <a href="{{ url_for('upload_page') }}">Carica</a> o usa l'agente.</div>{% endif %}
 
+{% if strip %}
+<div class="team-strip">
+  {% for p in strip %}
+  <div class="ts-card">
+    <div class="ts-name">{{ p.driver }}</div>
+    <div class="ts-stats">
+      <span><b>{{ p.valid_laps }}</b> giri validi</span>
+      <span><b>{{ p.n_sessions }}</b> sessioni</span>
+    </div>
+    <div class="ts-last">{% if p.last_track %}Ultima: {{ p.last_track }} · {{ p.last_car }}{% if p.last_date %} <span class="ts-date">{{ p.last_date }}</span>{% endif %}{% else %}<span class="ts-date">nessuna uscita</span>{% endif %}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <div class="home-cols">
   {% for d in aggregate %}
   <section class="dcol">

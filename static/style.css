@@ -397,3 +397,41 @@ select,.chip{font-family:var(--mono);font-size:12px;background:var(--panel2);
 .opt-sec{font-family:var(--mono);font-size:12px;color:var(--muted)}
 .opt-sec b{color:var(--txt)}
 .opt-from{color:var(--dim);font-size:11px}
+
+/* ---- striscia team in Home ---- */
+.team-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+@media(max-width:900px){.team-strip{grid-template-columns:1fr}}
+.ts-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.ts-name{font-weight:700;font-size:15px;color:var(--accent2);margin-bottom:6px}
+.ts-stats{display:flex;gap:18px;font-size:12px;color:var(--muted)}
+.ts-stats b{color:var(--txt);font-family:var(--mono);font-size:15px}
+.ts-last{margin-top:8px;font-size:11px;color:var(--muted)}
+.ts-date{color:var(--dim)}
+
+/* ---- pagina statistiche ---- */
+.sec-h{margin:22px 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.sec-sub{text-transform:none;letter-spacing:0;color:var(--dim);font-size:11px;font-weight:400;margin-left:8px}
+.pilot-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:900px){.pilot-cards{grid-template-columns:1fr}}
+.pcard-name{font-size:16px;font-weight:700;color:var(--accent2);margin-bottom:10px}
+.pcard-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 8px}
+.pcard-grid div{display:flex;flex-direction:column}
+.pcard-grid b{font-family:var(--mono);font-size:17px;color:var(--txt)}
+.pcard-grid span{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+.pcard-fav{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+.pcard-fav b{color:var(--txt)}
+
+.rec-table{width:100%;border-collapse:collapse;font-size:13px}
+.rec-table th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);padding:6px 10px;border-bottom:1px solid var(--line)}
+.rec-table td{padding:7px 10px;border-bottom:1px solid var(--line)}
+.rec-table td.dim{color:var(--dim)}
+.rec-badge{color:var(--amber);font-size:11px;margin-left:4px}
+
+.h2h-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+@media(max-width:900px){.h2h-grid{grid-template-columns:1fr}}
+.h2h-h{font-size:13px;font-weight:600;margin-bottom:8px}
+.h2h-row{display:grid;grid-template-columns:22px 1fr auto auto;gap:10px;align-items:center;padding:4px 0;font-size:13px}
+.h2h-row.lead .h2h-drv{color:var(--accent2);font-weight:600}
+.h2h-pos{color:var(--dim);font-family:var(--mono)}
+.h2h-time{font-family:var(--mono);color:var(--txt)}
+.h2h-gap{font-family:var(--mono);color:var(--muted);min-width:64px;text-align:right}
