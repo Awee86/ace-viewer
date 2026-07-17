@@ -192,12 +192,37 @@ def process(ld_path, ldx_path=None):
             f"Assicurati che accanto al .ld ci sia il .ldx completo della sessione.")
     crossings = beacons
 
+    # distanza cumulata (m) integrando la velocita': serve a capire quali intervalli
+    # tra due beacon sono davvero un giro completo (esclude out-lap, rientri, passaggi spuri)
+    sp_kmh = channels.get("SPEED", {}).get("values")
+    cumd = None
+    if sp_kmh is not None and len(sp_kmh) == len(tg) and len(tg) > 1:
+        sp_ms = np.asarray(sp_kmh, float) / 3.6
+        cumd = np.concatenate([[0.0], np.cumsum(sp_ms[:-1] * np.diff(tg))])
+
+    def seg_dist(a, b):
+        if cumd is None:
+            return None
+        return float(np.interp(b, tg, cumd) - np.interp(a, tg, cumd))
+
+    seg_dists = [seg_dist(crossings[i], crossings[i + 1]) for i in range(len(crossings) - 1)]
+    ref_dist = 0.0
+    valid_dists = [d for d in seg_dists if d and d > 0]
+    if valid_dists:
+        ref_dist = float(np.median(valid_dists))
+
+    def is_full_lap(i):
+        d = seg_dists[i]
+        if d is None or ref_dist <= 0:      # senza velocita' non filtro
+            return True
+        return d > 500 and 0.75 * ref_dist <= d <= 1.25 * ref_dist
+
     laps = []
     bounds = crossings
-    complete = True
     lap_data = {}
     for i in range(len(bounds) - 1):
         t0, t1 = bounds[i], bounds[i + 1]
+        complete = is_full_lap(i)
         st = _lap_stats(tg, channels, t0, t1)
         lap = {
             "n": i + 1,
