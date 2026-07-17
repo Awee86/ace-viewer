@@ -251,6 +251,49 @@ def load_processed(sid):
         return json.load(f)
 
 
+def reprocess_session(sid):
+    """Rielabora una sessione dai file originali (.ld/.ldx) ancora su disco.
+    Ritorna 'ok', 'removed' (non piu' cronometrabile) o 'no_raw'."""
+    import analysis
+    sdir = os.path.join(UPLOAD_DIR, sid)
+    if not os.path.isdir(sdir):
+        return "no_raw"
+    ld = ldx = None
+    for fn in os.listdir(sdir):
+        low = fn.lower()
+        if low.endswith(".ldx"):
+            ldx = os.path.join(sdir, fn)
+        elif low.endswith(".ld"):
+            ld = os.path.join(sdir, fn)
+    if not ld:
+        return "no_raw"
+    try:
+        payload = analysis.process(ld, ldx)
+    except Exception:
+        delete_session(sid)
+        return "removed"
+    with gzip.open(os.path.join(PROC_DIR, sid + ".json.gz"), "wt", encoding="utf-8") as f:
+        json.dump(_to_jsonable(payload), f)
+    complete = [l for l in payload["laps"] if l["complete"]]
+    best_dist = 0.0
+    if payload["best_lap"] and str(payload["best_lap"]) in payload["lap_data"]:
+        best_dist = round(float(payload["lap_data"][str(payload["best_lap"])]["dist"][-1]) / 1000, 2)
+    w = payload["meta"].get("weather", {})
+    with _conn() as c:
+        c.execute("""UPDATE sessions SET n_laps=?, best_lap_str=?, v_max=?,
+                     distance_km=?, air_temp=?, road_temp=? WHERE id=?""",
+                  (len(complete), payload["best_lap_str"], payload.get("best_lap_vmax") or 0,
+                   best_dist, w.get("air_temp"), w.get("road_temp"), sid))
+    return "ok"
+
+
+def reprocess_all():
+    res = {"ok": 0, "removed": 0, "no_raw": 0}
+    for s in list_sessions():
+        res[reprocess_session(s["id"])] += 1
+    return res
+
+
 def delete_session(sid):
     import shutil
     shutil.rmtree(os.path.join(UPLOAD_DIR, sid), ignore_errors=True)

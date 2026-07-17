@@ -181,23 +181,20 @@ def process(ld_path, ldx_path=None):
     else:
         x = y = np.zeros_like(tg)
 
-    # giri
+    # giri: i tempi vengono SEMPRE dai beacon del .ldx (istanti di passaggio sul traguardo
+    # salvati dal gioco). Nessuna ricostruzione: se mancano, la sessione non e' cronometrabile.
     beacons = read_ldx_beacons(ldx_path) if ldx_path else []
-    if len(beacons) >= 2:
-        # i beacon dell'.ldx sono il riferimento esatto del traguardo: usali direttamente
-        crossings = beacons
-    else:
-        # ripiego: nessun (o un solo) beacon -> ricostruisco i passaggi dalla mappa
-        spd_ch = channels.get("SPEED", {}).get("values", tg)
-        gate_t = beacons[0] if beacons else float(tg[int(np.argmax(spd_ch))])
-        crossings = detect_lap_crossings(tg, x, y, gate_t)
+    if len(beacons) < 2:
+        n = len(beacons)
+        raise ValueError(
+            f"Tempi non leggibili dal file: il .ldx contiene solo {n} "
+            f"passaggi sul traguardo (ne servono almeno 2 per un giro). "
+            f"Assicurati che accanto al .ld ci sia il .ldx completo della sessione.")
+    crossings = beacons
 
     laps = []
-    if len(crossings) >= 2:
-        bounds = crossings
-    else:
-        bounds = [float(tg[0]), float(tg[-1])]  # sessione intera come unico segmento
-    complete = len(crossings) >= 2
+    bounds = crossings
+    complete = True
     lap_data = {}
     for i in range(len(bounds) - 1):
         t0, t1 = bounds[i], bounds[i + 1]

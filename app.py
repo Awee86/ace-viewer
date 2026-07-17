@@ -367,7 +367,8 @@ def healthz():
 @require_auth
 def admin_view():
     return render_template("admin.html", usage=storage.disk_usage(),
-                           freed=request.args.get("freed"))
+                           freed=request.args.get("freed"),
+                           msg=request.args.get("msg"))
 
 
 @app.route("/admin/compact", methods=["POST"])
@@ -376,6 +377,15 @@ def admin_compact():
     drop_raw = request.form.get("drop_raw") == "1"
     freed = storage.compact_processed(drop_raw=drop_raw)
     return redirect(url_for("admin_view", freed=freed))
+
+
+@app.route("/admin/reprocess", methods=["POST"])
+@require_auth
+def admin_reprocess():
+    r = storage.reprocess_all()
+    return redirect(url_for("admin_view",
+                    msg=f"Ricalcolo: {r['ok']} aggiornate, {r['removed']} rimosse (non cronometrabili), "
+                        f"{r['no_raw']} senza file originali."))
 
 
 # ---------------------------------------------------------------- coach AI

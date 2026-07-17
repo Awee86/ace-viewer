@@ -6,6 +6,7 @@
 <div class="upload-page">
   <h2>Spazio su disco</h2>
   {% if freed is not none %}<div class="panel" style="border-color:var(--accent2);margin-bottom:14px">Liberati <b>{{ '%.1f'|format((freed|float)/1048576) }} MB</b>.</div>{% endif %}
+  {% if msg %}<div class="panel" style="border-color:var(--accent2);margin-bottom:14px">{{ msg }}</div>{% endif %}
   <div class="panel" style="margin-bottom:16px">
     <div class="srow"><span class="sk">File elaborati</span><span class="sv">{{ mb(usage.processed) }}</span></div>
     <div class="srow"><span class="sk">File originali (.ld/.ldx)</span><span class="sv">{{ mb(usage.uploads) }}</span></div>
@@ -16,6 +17,12 @@
   <form method="post" action="{{ url_for('admin_compact') }}" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
     <button class="btn-primary sm" name="drop_raw" value="0">Compatta</button>
     <button class="btn-primary sm" name="drop_raw" value="1" style="background:#7a1414" onclick="return confirm('Elimina anche i file originali .ld/.ldx? Non potrai ri-elaborare le vecchie sessioni se cambia il formato (ma i piloti li hanno ancora sul PC).')">Compatta + elimina originali</button>
+  </form>
+
+  <h2 style="margin-top:26px">Ricalcolo tempi</h2>
+  <p class="dcol-empty">Rielabora le sessioni già in archivio usando i tempi dei beacon del file .ldx. Le sessioni con tempi ricostruiti in passato vengono corrette; quelle senza almeno due passaggi sul traguardo (non cronometrabili) vengono rimosse. Richiede i file originali su disco.</p>
+  <form method="post" action="{{ url_for('admin_reprocess') }}" style="margin-top:10px">
+    <button class="btn-primary sm" onclick="return confirm('Rielaboro tutte le sessioni dai file originali? Quelle non cronometrabili verranno rimosse.')">Ricalcola dai file originali</button>
   </form>
 </div>
 {% endblock %}

@@ -84,16 +84,28 @@ class LD:
 
 
 def read_ldx_beacons(path):
-    """Restituisce i tempi (in secondi) dei beacon dal file .ldx (XML)."""
+    """Restituisce i tempi (in secondi) dei SOLI beacon di traguardo (ClassName BCN) dal .ldx."""
     try:
         with open(path, "r", encoding="latin-1") as f:
             txt = f.read()
     except OSError:
         return []
     times = []
-    for m in re.finditer(r'<Marker\b[^>]*\bTime="([^"]+)"', txt):
+    for m in re.finditer(r"<Marker\b[^>]*?/?>", txt):
+        tag = m.group(0)
+        if 'ClassName="BCN"' not in tag:
+            continue
+        tm = re.search(r'\bTime="([^"]+)"', tag)
+        if not tm:
+            continue
         try:
-            times.append(float(m.group(1)) / 1e6)  # microsecondi -> secondi
+            times.append(float(tm.group(1)) / 1e6)   # microsecondi -> secondi
         except ValueError:
             pass
-    return sorted(times)
+    times.sort()
+    # rimuovo eventuali doppioni ravvicinati (< 1s)
+    out = []
+    for t in times:
+        if not out or t - out[-1] > 1.0:
+            out.append(t)
+    return out
