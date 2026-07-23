@@ -327,10 +327,41 @@ def reprocess_session(sid):
     return "ok"
 
 
+def dedupe_all():
+    """Fonde le sessioni gia' in archivio che sono la stessa sessione riscritta
+    (una prefisso dell'altra). Tiene la piu' completa. Ritorna quante ne rimuove."""
+    norm = lambda x: (x or "").strip().lower()
+    info = []
+    for s in list_sessions():
+        p = load_processed(s["id"])
+        if not p:
+            continue
+        b = _boundaries_from_payload(p)
+        if len(b) >= 2:
+            info.append((s, b))
+    deleted = set()
+    removed = 0
+    for a, ba in info:
+        if a["id"] in deleted:
+            continue
+        for b, bb in info:
+            if b["id"] == a["id"] or b["id"] in deleted:
+                continue
+            if (norm(a["uploader"]) != norm(b["uploader"])
+                    or a["car"] != b["car"] or a["track"] != b["track"]):
+                continue
+            if _is_prefix(bb, ba):          # b e' contenuto in a -> a piu' completo
+                delete_session(b["id"])
+                deleted.add(b["id"])
+                removed += 1
+    return removed
+
+
 def reprocess_all():
     res = {"ok": 0, "removed": 0, "no_raw": 0}
     for s in list_sessions():
         res[reprocess_session(s["id"])] += 1
+    res["merged"] = dedupe_all()
     return res
 
 

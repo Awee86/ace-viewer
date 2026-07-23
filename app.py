@@ -385,7 +385,7 @@ def admin_reprocess():
     r = storage.reprocess_all()
     return redirect(url_for("admin_view",
                     msg=f"Ricalcolo: {r['ok']} aggiornate, {r['removed']} rimosse (non cronometrabili), "
-                        f"{r['no_raw']} senza file originali."))
+                        f"{r.get('merged', 0)} doppioni fusi, {r['no_raw']} senza file originali."))
 
 
 # ---------------------------------------------------------------- coach AI
