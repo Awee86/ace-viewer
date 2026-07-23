@@ -14,7 +14,7 @@ CORE_CHANNELS = [
 
 def _resample(ch, tg):
     t = np.arange(ch.n) / ch.freq
-    return np.interp(tg, t, ch.data)
+    return np.interp(tg, t, ch.data).astype(np.float32)
 
 
 def dead_reckon(t, v, yaw):
@@ -160,26 +160,31 @@ def process(ld_path, ldx_path=None):
         raise ValueError("Nessun dato nei canali (sessione vuota).")
 
     dur = ld.duration
+    meta_date, meta_time = ld.date, ld.time
     tg = np.arange(0, dur, 1.0 / BASE_FS)
 
-    # tutti i canali ricampionati sulla base comune
+    # tutti i canali ricampionati sulla base comune; libero i dati grezzi man mano
+    # (una sessione lunga -es. F1- terrebbe altrimenti in RAM tutti i canali due volte)
     channels = {}
     for c in ld.channels:
         vals = _resample(c, tg)
         if c.name == "SPEED" and (c.unit or "").lower() in ("m/s", ""):
-            channels["SPEED"] = {"unit": "km/h", "values": vals * 3.6}
+            channels["SPEED"] = {"unit": "km/h", "values": vals * np.float32(3.6)}
         else:
             channels[c.name] = {"unit": c.unit, "values": vals}
+    del ld                       # non serve piu': libera l'oggetto e i canali grezzi
 
-    # mappa (dead-reckoning)
-    spd = ld.get("SPEED")
-    yaw = ld.get("ROTY")
-    if spd is not None and yaw is not None:
-        v = _resample(spd, tg)            # m/s
-        w = _resample(yaw, tg)            # rad/s
+    # mappa (dead-reckoning): riuso i canali gia' ricampionati (niente seconda copia)
+    sp = channels.get("SPEED")
+    ro = channels.get("ROTY")
+    if sp is not None and ro is not None:
+        v = np.asarray(sp["values"], dtype=np.float32) / np.float32(3.6)   # m/s
+        w = np.asarray(ro["values"], dtype=np.float32)                     # rad/s
         x, y = dead_reckon(tg, v, w)
+        x = x.astype(np.float32); y = y.astype(np.float32)
+        del v, w
     else:
-        x = y = np.zeros_like(tg)
+        x = y = np.zeros_like(tg, dtype=np.float32)
 
     # giri: i tempi vengono SEMPRE dai beacon del .ldx (istanti di passaggio sul traguardo
     # salvati dal gioco). Nessuna ricostruzione: se mancano, la sessione non e' cronometrabile.
@@ -250,7 +255,7 @@ def process(ld_path, ldx_path=None):
 
     return {
         "meta": {
-            "date": ld.date, "time": ld.time,
+            "date": meta_date, "time": meta_time,
             "duration": round(dur, 1),
             "n_samples": len(tg), "fs": BASE_FS,
             "channel_names": sorted(channels.keys()),
