@@ -13,7 +13,7 @@ import configparser
 import requests
 
 APP_NAME = "ACE Agent"
-AGENT_VERSION = "1.5.1"
+AGENT_VERSION = "1.6.0"
 
 
 def base_dir():
@@ -207,10 +207,39 @@ def sync_setups_down(cfg, state):
         log(f"Scaricato setup '{s['name']}' di {s['uploader']} -> {s.get('car')}/{s.get('track')}")
 
 
+def ldx_ready(ld_path):
+    """True se la sessione e' finalizzata: il .ldx accanto al .ld ha almeno 2 beacon
+    con tempo > 0 (giro completo). I file 'acerbi' (solo intestazione, beacon a 0)
+    vengono cosi' saltati finche' il gioco non li completa a fine sessione."""
+    ldx = ld_path[:-3] + ".ldx"
+    if not os.path.exists(ldx):
+        return False
+    try:
+        with open(ldx, "r", encoding="latin-1") as f:
+            txt = f.read()
+    except OSError:
+        return False
+    import re as _re
+    times = []
+    for m in _re.finditer(r"<Marker\b[^>]*?/?>", txt):
+        tag = m.group(0)
+        if 'ClassName="BCN"' not in tag:
+            continue
+        tm = _re.search(r'\bTime="([^"]+)"', tag)
+        if tm:
+            try:
+                times.append(float(tm.group(1)))
+            except ValueError:
+                pass
+    return sum(1 for t in times if t > 0) >= 2
+
+
 def scan_once(cfg, state):
     now = time.time()
     if os.path.isdir(cfg["folder"]):
         for ld in find_files(cfg["folder"], ".ld"):
+            if not ldx_ready(ld):
+                continue          # sessione non ancora finalizzata dal gioco: ritento dopo
             _process(ld, upload, "Carico", cfg, state, now)
     else:
         log(f"Cartella telemetria non trovata: {cfg['folder']}")

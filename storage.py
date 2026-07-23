@@ -188,6 +188,46 @@ def _to_jsonable(payload):
     return out
 
 
+def _boundaries_from_payload(p):
+    """Istanti dei passaggi al traguardo (confine dei giri) come impronta della sessione."""
+    laps = p.get("laps", [])
+    if not laps:
+        return []
+    return [round(laps[0]["t0"], 2)] + [round(l["t1"], 2) for l in laps]
+
+
+def _is_prefix(short, lng, tol=0.75):
+    if not short or len(short) > len(lng):
+        return False
+    return all(abs(short[i] - lng[i]) <= tol for i in range(len(short)))
+
+
+def _dedupe_supersession(new_sid, payload, uploader, car, track):
+    """Se un'altra sessione dello stesso pilota/auto/pista ha gli stessi giri iniziali
+    (stessa sessione di gioco, riscritta man mano), tiene solo la piu' completa."""
+    bnew = _boundaries_from_payload(payload)
+    if len(bnew) < 2:
+        return new_sid
+    norm = lambda x: (x or "").strip().lower()
+    for s in list_sessions():
+        if s["id"] == new_sid:
+            continue
+        if norm(s["uploader"]) != norm(uploader) or s["car"] != car or s["track"] != track:
+            continue
+        p_old = load_processed(s["id"])
+        if not p_old:
+            continue
+        bold = _boundaries_from_payload(p_old)
+        if not bold:
+            continue
+        if _is_prefix(bold, bnew):          # il vecchio e' un prefisso del nuovo -> nuovo piu' completo
+            delete_session(s["id"])
+        elif _is_prefix(bnew, bold):        # il nuovo e' gia' contenuto in uno piu' completo
+            delete_session(new_sid)
+            return s["id"]
+    return new_sid
+
+
 def save_session(payload, ld_path, ldx_path, orig_name, uploader, sha=None):
     if sha is None:
         sha = sha_of(ld_path)
@@ -222,7 +262,7 @@ def save_session(payload, ld_path, ldx_path, orig_name, uploader, sha=None):
              payload["best_lap_str"], best_vmax, best_dist, uploader,
              datetime.now(timezone.utc).isoformat(timespec="seconds"), sha,
              w.get("air_temp"), w.get("road_temp")))
-    return sid
+    return _dedupe_supersession(sid, payload, uploader, car, track)
 
 
 def list_sessions():

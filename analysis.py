@@ -216,11 +216,23 @@ def process(ld_path, ldx_path=None):
     if valid_dists:
         ref_dist = float(np.median(valid_dists))
 
+    seg_times = [crossings[i + 1] - crossings[i] for i in range(len(crossings) - 1)]
+    dist_ok_times = [seg_times[i] for i in range(len(seg_times))
+                     if seg_dists[i] and ref_dist > 0
+                     and 0.75 * ref_dist <= seg_dists[i] <= 1.25 * ref_dist]
+    # riferimento = giro piu' veloce (robusto anche con pochi giri): i giri-box hanno
+    # tempo molto maggiore e vengono scartati
+    ref_time = min(dist_ok_times) if dist_ok_times else (min(seg_times) if seg_times else 0.0)
+
     def is_full_lap(i):
         d = seg_dists[i]
         if d is None or ref_dist <= 0:      # senza velocita' non filtro
             return True
-        return d > 500 and 0.75 * ref_dist <= d <= 1.25 * ref_dist
+        if not (d > 500 and 0.75 * ref_dist <= d <= 1.25 * ref_dist):
+            return False
+        if ref_time > 0 and (crossings[i + 1] - crossings[i]) > 1.8 * ref_time:
+            return False                    # rientro/sosta ai box: non e' un giro
+        return True
 
     laps = []
     bounds = crossings
